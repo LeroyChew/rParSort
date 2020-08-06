@@ -1341,12 +1341,13 @@ int main (int argc, char** argv) {
 //	const char* cnf_name = cnf_name_s.c_str();
 //	const char* proof_name = proof_name_s.c_str();
 	char cnf_name[100];
-        strcpy(cnf_name, fname);
-        strcat(cnf_name, ".cnf");
 	char proof_name[100];
-        strcpy(proof_name, fname);
-        strcat(proof_name, ".drat");
 	if (::file_writing) {
+                strcpy(cnf_name, fname);
+                strcat(cnf_name, ".cnf");
+                strcpy(proof_name, fname);
+                strcat(proof_name, ".drat");
+
 		if (remove(proof_name) != 0)
 		{	printf("No file to replace creating new %s file\n", proof_name); }
 		else
@@ -1355,8 +1356,6 @@ int main (int argc, char** argv) {
 		{	printf("No file to replace creating new %s file\n", cnf_name); }
 		else
 			puts("File successfully deleted");
-	}
-	else {
 	}
 	//std::srand(unsigned(std::time(0)));
 	std::vector<int> myvector;
