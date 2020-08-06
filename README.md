@@ -1,7 +1,10 @@
 # rParSort
 produces and proves reordered parity CNFs
 
-README (draft)
+README
+
+simply use 'make' to make
+
 usage: ./parity [<VARS>] [<SEED>] [<option> ...]
 
 <VARS> and <SEED> are positive integers
