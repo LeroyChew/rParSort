@@ -1,5 +1,5 @@
-parity: parity.cpp
-	g++ parity.cpp -O2 -o parity
+parity: Parity.cpp
+	g++ Parity.cpp -O2 -o parity
 
 clean:
 	rm parity
