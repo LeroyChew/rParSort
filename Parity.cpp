@@ -3,6 +3,7 @@
 #include <stack>
 #include <math.h>
 #include "Tree.h"
+#include <cstring>
 
 #include <ctime>        // std::time
 #include <cstdlib>      // std::rand, std::srand
@@ -1369,7 +1370,14 @@ int main (int argc, char** argv) {
 	//::er_proof_only = ERPROOFONLY;
 
 	// using myrandom:
-	std::random_shuffle(myvector.begin(), myvector.end(), order_random);
+//	std::random_shuffle(myvector.begin(), myvector.end(), order_random);
+//	std::shuffle(myvector.begin(), myvector.end(), order_random);
+
+
+        for (int i = 0; i < myvector.size(); i++) {
+          int r = i + rand() % (myvector.size() - i); // careful here!
+          swap(myvector[i], myvector[r]);
+        }
 
 	// print out content:
 	/*
