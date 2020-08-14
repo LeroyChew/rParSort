@@ -1410,23 +1410,24 @@ int main (int argc, char** argv) {
 
 	std::cout << '\n';
 	*/
-	::file_cnf = fopen(cnf_name, "w");
-	fprintf(::file_cnf, "p cnf ");
-	fprintf(::file_cnf, "%i", 3 * n - 6);
-	fprintf(::file_cnf, " ");
-	fprintf(::file_cnf, "%i", P.clause_space);
-	fprintf(::file_cnf, "\n");
-	//cnffile << "p cnf " << 3 * n -6 << " " << P.cspace << "\n";
+	if (::file_writing) {
+		::file_cnf = fopen(cnf_name, "w");
+		fprintf(::file_cnf, "p cnf ");
+		fprintf(::file_cnf, "%i", 3 * n - 6);
+		fprintf(::file_cnf, " ");
+		fprintf(::file_cnf, "%i", P.clause_space);
+		fprintf(::file_cnf, "\n");
+		//cnffile << "p cnf " << 3 * n -6 << " " << P.cspace << "\n";
 
-	::f = P;
-	//::f.Display();
-	::f.print(::file_cnf);
+		::f = P;
+		//::f.Display();
+		::f.print(::file_cnf);
 
-	fclose(::file_cnf);
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "time for constructing CNF" << duration << endl;
-	//::reverse.print();
-
+		fclose(::file_cnf);
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "time for constructing CNF" << duration << endl;
+		//::reverse.print();
+	}
 	bool skipprvr = 0;
 
 	//getchar();
