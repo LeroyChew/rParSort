@@ -43,6 +43,18 @@ struct Clause {
 		fprintf(cnf, "0\n");
 	};
 
+	void print_gr(FILE *cnf) {
+		for (int i = 0; i < 4; i++) {
+
+			if (lit[i] == 0) {
+				break;
+			}
+			fprintf(cnf, "%i", lit[i]);
+			fprintf(cnf, " ");
+		}
+		fprintf(cnf, "\n");
+	};
+
 	bool empty() {
 		for (int i = 0; i < 4; i++) {
 			if (lit[i] != 0) { return false; }
@@ -63,10 +75,12 @@ private:
 	C_Node * head, *tail;
 public:
 	int clause_space;
+	int max_var;
 public:
 	Cnf()
 	{
 		clause_space = 0;
+		max_var = 0;
 		head = NULL;
 		tail = NULL;
 	}
@@ -104,9 +118,14 @@ public:
 			tail = temp;
 		}
 		clause_space++;
+		for (int i = 0; i < 4; i++) {
+			if (C.lit[i] > max_var) {
+				max_var= C.lit[i];
+			}
+		}
 	}
 
-	bool emp_clause() {
+	bool is_emp_clause() {
 		int c = clause_space;
 		for (int i = 0; i < c; i++)
 		{
@@ -133,9 +152,29 @@ public:
 
 	void print(FILE *cnf) {
 		C_Node *temp = new C_Node;
+		fprintf(cnf, "p cnf ");
+		fprintf(cnf, "%i", max_var);
+		fprintf(cnf, " ");
+		fprintf(cnf, "%i", clause_space);
+		fprintf(cnf, "\n");
 		temp = head;
 		while (temp != NULL) {
 			temp->data.print(cnf);
+			temp = temp->next;
+		}
+
+	}
+
+	void print_gr(FILE *cnf) {
+		C_Node *temp = new C_Node;
+		fprintf(cnf, "p tw ");
+		fprintf(cnf, "%i", max_var);
+		fprintf(cnf, " ");
+		fprintf(cnf, "%i", clause_space);
+		fprintf(cnf, "\n");
+		temp = head;
+		while (temp != NULL) {
+			temp->data.print_gr(cnf);
 			temp = temp->next;
 		}
 

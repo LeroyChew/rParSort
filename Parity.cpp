@@ -35,9 +35,16 @@ std::vector<int> extvariables;
 
 
 bool file_writing = 0;
+bool file_reading = 0;
+bool clique_mode = 0;
+int distribution_mode = 0;
+bool graph_writing = 0;
 FILE *file_proof;
 FILE *file_cnf;
+FILE *file_graph;
 Cnf f;
+Edge_Graph g;
+
 
 void xor_add(Cnf* p, int lit1, int lit2, int lit3) {
 	p->add_clause(Clause(-lit1, lit2, lit3, 0));
@@ -1297,39 +1304,211 @@ void final_equiv(int n, std::vector<int> invector) {
 
 }
 
+std::vector<int> uniform_random(int n) {
+	std::vector<int> the_vector;
+	for (int i = 0; i < n; i++) {
+		the_vector.push_back(i + 1);
+	}
+	for (int i = 0; i < the_vector.size(); i++) {
+		int r = i + rand() % (the_vector.size() - i); // careful here!
+		swap(the_vector[i], the_vector[r]);
+		//cout << i << " " << r << " " << myvector[i] << endl;
+	}
+	return the_vector;
+}
+
+std::vector<int> distance_bounded_random(int n, int k) {
+	std::vector<int> the_vector;
+	for (int i = 0; i < n; i++) {
+		the_vector.push_back(i + 1);
+	}
+	
+	int d = n;
+	std::vector<int> best_vector = the_vector;
+	int best_distance = n;
+	int j = 0;
+	while (d>k && j< 10000000) {
+		j++;
+		for (int i = 0; i < the_vector.size(); i++) {
+			int r = i + rand() % (the_vector.size() - i); // careful here!
+			swap(the_vector[i], the_vector[r]);
+			//cout << i << " " << r << " " << myvector[i] << endl;
+		}
+		int max_distance=0;
+		for (int i = 0; i < n; i++) {
+			if (abs(the_vector[i]-(i+1)) > max_distance) {
+				max_distance = abs(the_vector[i] - (i + 1));
+			}
+		}
+		if (max_distance < best_distance) {
+			best_distance = max_distance;
+			best_vector = the_vector;
+		}
+		d = max_distance;
+	}
+		cout << "best distance is: " << best_distance << endl;
+	return best_vector;
+}
+
+
+std::vector<int> clique_minor(int n, int k) {
+	std::vector<int> the_vector;
+	for (int i = 0; i < n; i++) {
+		the_vector.push_back(i+1);
+	}
+	
+	while(n < (k * (k - 3) + 2)) {
+		k--;
+	}
+	the_vector[k * (k - 3) + 1] = 2;
+	the_vector[1] = k * (k - 3) + 2;
+	//std::cout << "myvector 0: " << the_vector[0] << endl;
+	//std::cout << "myvector " << n - 1 << ": " << the_vector[n - 1] << endl;
+	int in;
+	int out = 2;
+	for (int i = 0; i<k - 2; i++) {
+		if (i == 0) {
+			for (int j = i; j<k - 3; j++) {
+				in = i * (k - 3) + j + 1;
+				out++;
+				the_vector[in] = out;
+				//std::cout << "i" << i << "j"<< j << "myvector " << in << ": " << out<< endl;
+				in = (j + 2)*(k - 3) + i + 1;
+				out++;
+				the_vector[in] = out;
+				//std::cout << "myvector " << in << ": " << out<< endl;
+			}
+		}
+		else {
+			for (int j = i - 1; j<k - 3; j++) {
+				in = i * (k - 3) + j + 1;
+				out++;
+				the_vector[in] = out;
+				//std::cout  << "i" << i << "j"<< j<< "myvector " << in << ": " << out<< endl;
+				if (j<k - 4) {
+					in = (j + 3)*(k - 3) + i + 1;
+				}
+				else {
+					in = (j + 3)*(k - 3) + i;
+				}
+				out++;
+				the_vector[in] = out;
+				//std::cout << "myvector " << in << ": " << out<< endl;
+			}
+
+		}
+	}
+	return the_vector;
+}
+
+std::vector<int> random_swaps(int n, int k) {
+	std::vector<int> the_vector;
+	for (int i = 0; i < n; i++) {
+		the_vector.push_back(i + 1);
+	}
+	for (int i = 0; i < k; i++) {
+		int r = rand() % (the_vector.size() - 1); // careful here!
+		swap(the_vector[r], the_vector[r+1]);
+	}
+	cout <<  k << " random adjacent swaps" << endl;
+	return the_vector;
+}
 
 int main (int argc, char** argv) {
 	int n = 100;
+	int k = n;
 	int seed = 12345;
-//	std::string fname = "output";
-        char* fname=NULL;
+	char* fname = NULL;
+	//char** argv= "-o pr";
+	if (argc > 1) {
+		if (argv[1][0] == '-') { printf("c first parameter needs to be a positive number\n"); return 0; }
+		n = atoi(argv[1]);
+	}
+	else { printf("c need to provide size\n"); return 0; }
 
-        if (argc > 1) {
-          if (argv[1][0] == '-') { printf ("c first parameter needs to be a positive number\n"); return 0; }
-          n = atoi (argv[1]);
-        }
-        else { printf ("c need to provide size\n"); return 0; }
+	std::vector<int> myvector;
+	std::vector<int> filevector;
+	::file_reading = 0;
+	ifstream checker;
+	checker.open("input.txt", ios::app);
+	int a;
+	int i = 0;
+	while ((checker >> a)&& (i<4)) {
+		i++;
+		if (i == 4) {
+			::file_reading =1;
+			cout << "detected input.txt" << endl;
+		}
+	}
+	checker.close();
+
+	if (::file_reading == 1) {
+		std:fstream myfile("input.txt", std::ios_base::in);
+		int a;
+		int i = 0;
+		while (myfile >> a) {
+				filevector.push_back(a);
+				i++;
+		}
+		
+		std::vector<int> checkvector;
+		//checking bijectivity
+		for (int j = 0; j < i; j++) {
+			checkvector.push_back(0);
+		}
+		for (int j = 0; j < i; j++) {
+			checkvector[filevector[j]-1]++;
+		}
+		for (int j = 0; j < i; j++) {
+			if (checkvector[j] != 1) {
+				cout << "input.txt is not a permutation, reverting to seed" << endl;
+				::file_reading = 0;
+				break;
+			}
+		}
+		if (::file_reading == 1) {
+			n = i;
+			myvector = filevector;
+		}
+
+	}
+	
+//	std::string fname = "output";
+        //const char* fname="test800";
+
+ 
 
 	if (n < 4) {
 		cout << "ERROR: n is too small";
+		//getchar();
 		return 0;
 	}
+	
+		cout << "Running using size " << n << endl;
 
-        cout << "Running using size " << n << endl;
-
-        if ((argc > 2) && (argv[2][0] != '-')) seed = atoi (argv[2]);
+      if ((argc > 2) && (argv[2][0] != '-')) seed = atoi (argv[2]);
 	srand(seed);
-
-        cout << "Running using seed " << seed << endl;
-
+	if (::file_reading == 0) {
+		cout << "Running using seed " << seed << endl;
+	}
 	for (int i = 1; i < argc; i++) {
 		if (argv[i][0] == '-') {
 			if (argv[i][1] == 'o') {
 				file_writing = 1;
-                                if (argc == i + 1) { printf ("c file name missing after -o\n"); return 0; }
-                                fname = argv[i+1];
+                                if (argc == i + 1) { printf ("c file name missing after -o\n"); 
+								return 0;
+								//strcat(fname, to_cstr(std::move(ss).str()));
+								}
+								else {
+									fname = argv[i + 1];
+								}
+			}
+			if (argv[i][1] == 'm') {
+				distribution_mode= atoi(argv[i+1]);
+				k= atoi(argv[i + 2]);
 			}
 		}
+
 	}
 
 //	if (::file_writing) {
@@ -1342,11 +1521,17 @@ int main (int argc, char** argv) {
 //	const char* proof_name = proof_name_s.c_str();
 	char cnf_name[100];
 	char proof_name[100];
+	char graph_name[100];
+	char stats_name[100];
 	if (::file_writing) {
                 strcpy(cnf_name, fname);
                 strcat(cnf_name, ".cnf");
                 strcpy(proof_name, fname);
                 strcat(proof_name, ".drat");
+				strcpy(graph_name, fname);
+				strcat(graph_name, ".gr");
+				strcpy(stats_name, fname);
+				strcat(stats_name, "_stats.txt");
 
 		if (remove(proof_name) != 0)
 		{	printf("No file to replace creating new %s file\n", proof_name); }
@@ -1356,13 +1541,26 @@ int main (int argc, char** argv) {
 		{	printf("No file to replace creating new %s file\n", cnf_name); }
 		else
 			puts("File successfully deleted");
+		if (remove(graph_name) != 0)
+		{
+			printf("No file to replace creating new %s file\n", graph_name);
+		}
+		else
+			puts("File successfully deleted");
+		if (remove(stats_name) != 0)
+		{
+			printf("No file to replace creating new %s file\n", stats_name);
+		}
+		else
+			puts("File successfully deleted");
 	}
 	//std::srand(unsigned(std::time(0)));
-	std::vector<int> myvector;
+	
 
 	// set some values:
-	for (int i = 1; i<n+1; ++i) myvector.push_back(i); // 1 2 3 4 5 6 7 8 9
-
+	if (file_reading == 0) {
+		for (int i = 1; i < n + 1; ++i) myvector.push_back(i); // 1 2 3 4 5 6 7 8 9
+	}
 	//ER stuff in main
 	for (int i = 1; i<=3 * n - 6; ++i) ::extvariables.push_back(i); // 1 2 3 4 5 6 7 8 9
 	::max_ext_var = 3 * n - 6;
@@ -1371,12 +1569,29 @@ int main (int argc, char** argv) {
 	// using myrandom:
 //	std::random_shuffle(myvector.begin(), myvector.end(), order_random);
 //	std::shuffle(myvector.begin(), myvector.end(), order_random);
+	
 
+	if (::file_reading == 0) {
+		// uniform distribution
+		
+		if (::distribution_mode == 0) {
+			myvector = uniform_random(n);
+		}
+		if (::distribution_mode == 1) {
+			myvector = distance_bounded_random(n, k);
+		}
+		if (::distribution_mode == 2) {
+			myvector = clique_minor(n, k);
+		}
+		if (::distribution_mode == 3) {
+			myvector = random_swaps(n, k);
+		}
 
-        for (int i = 0; i < myvector.size(); i++) {
-          int r = i + rand() % (myvector.size() - i); // careful here!
-          swap(myvector[i], myvector[r]);
-        }
+	}
+	else {
+		cout << "shuffling skipped" << endl;
+		//getchar();
+	}
 
 	// print out content:
 	/*
@@ -1386,6 +1601,19 @@ int main (int argc, char** argv) {
 
 	std::cout << '\n';
 	*/
+	ofstream vec_dump;
+	if (::file_writing) {
+		cout << "creating " << stats_name << endl;
+		vec_dump.open(stats_name, ios::app);
+		//stats << " n " << "\t" << "s" << "\t" << "#vars" << "\t" << "#c " << "\t" << "#lines" << "\t" << "#add" << "\t" << "#del" << "\t" <<  "time elapsed "  << endl;
+		//stats << n << "\t" << seed << "\t" << ::max_ext_var << "\t" << 8 * (n - 2) << "\t" << ::proof_size << "\t" << ::ata_size + ::rata_size << "\t" << ::ate_size + ::rate_size << "\t" << duration << endl;
+		for (int i = 0; i < myvector.size(); i++) {
+			vec_dump << myvector[i] << " ";
+			//cout << i << " " << r << " " << myvector[i] << endl;
+		}
+		vec_dump.close();
+	}
+
 	double duration;
 	std::clock_t start;
 
@@ -1403,6 +1631,60 @@ int main (int argc, char** argv) {
 	for (int i = 1; i < n+1; i++) {
 		revvector[myvector[i-1]-1] = i;
 	}
+
+	//Tseitin Graph creation
+	Edge_Graph tseitin;
+	Cnf cnf_tseitin;
+
+	for (int i = 1; i < n - 2; i++) {
+		tseitin.add(i, i + 1);
+		cnf_tseitin.add_clause(Clause(i, i + 1, 0, 0));
+	}
+	for (int i = 1; i < n - 2; i++) {
+		tseitin.add(n - 2 + i, n - 2 + i + 1);
+		cnf_tseitin.add_clause(Clause(n - 2 + i, n - 2 + i + 1, 0, 0));
+	}
+	if ((myvector[0]>1) && (myvector[0]<n)) {
+		tseitin.add(myvector[0] - 1, n - 1);
+		cnf_tseitin.add_clause(Clause(myvector[0] - 1, n - 1, 0, 0));
+	}
+	if ((myvector[0] == 1)) {
+		tseitin.add(1, n - 1);
+		cnf_tseitin.add_clause(Clause(1, n - 1, 0, 0));
+	}
+	if ((myvector[0] == n)) {
+		tseitin.add(n - 2, n - 1);
+		cnf_tseitin.add_clause(Clause(n - 2, n - 1, 0, 0));
+	}
+	for (int i = 1; i < n - 1; i++) {
+		if ((myvector[i]>1) && (myvector[i]<n)) {
+			tseitin.add(myvector[i] - 1, n - 2 + i);
+			cnf_tseitin.add_clause(Clause(myvector[i] - 1, n - 2 + i, 0, 0));
+		}
+		if ((myvector[i] == 1)) {
+			tseitin.add(1, n - 2 + i);
+			cnf_tseitin.add_clause(Clause(1, n - 2 + i, 0, 0));
+		}
+		if ((myvector[i] == n)) {
+			tseitin.add(n - 2, n - 2 + i);
+			cnf_tseitin.add_clause(Clause(n - 2, n - 2 + i, 0, 0));
+		}
+
+
+	}
+	//tseitin.add(myvector[n-1],2*n-4);
+	if ((myvector[n - 1]>1) && (myvector[n - 1]<n)) {
+		tseitin.add(myvector[n - 1] - 1, 2 * n - 4);
+		cnf_tseitin.add_clause(Clause(myvector[n - 1] - 1, 2 * n - 4, 0, 0));
+	}
+	if ((myvector[n - 1] == 1)) {
+		tseitin.add(1, 2 * n - 4);
+		cnf_tseitin.add_clause(Clause(1, 2 * n - 4, 0, 0));
+	}
+	if ((myvector[n - 1] == n)) {
+		tseitin.add(n - 2, 2 * n - 4);
+		cnf_tseitin.add_clause(Clause(n - 2, 2 * n - 4, 0, 0));
+	}
 	/*
 	std::cout << "revvector contains:";
 	for (std::vector<int>::iterator it = revvector.begin(); it != revvector.end(); ++it)
@@ -1412,11 +1694,7 @@ int main (int argc, char** argv) {
 	*/
 	if (::file_writing) {
 		::file_cnf = fopen(cnf_name, "w");
-		fprintf(::file_cnf, "p cnf ");
-		fprintf(::file_cnf, "%i", 3 * n - 6);
-		fprintf(::file_cnf, " ");
-		fprintf(::file_cnf, "%i", P.clause_space);
-		fprintf(::file_cnf, "\n");
+		
 		//cnffile << "p cnf " << 3 * n -6 << " " << P.cspace << "\n";
 
 		::f = P;
@@ -1428,10 +1706,20 @@ int main (int argc, char** argv) {
 		std::cout << "time for constructing CNF" << duration << endl;
 		//::reverse.print();
 	}
-	bool skipprvr = 0;
+	if (::file_writing) {
+		::file_graph = fopen(graph_name, "w");
+		::g = tseitin;
+		if (::file_writing) {
+			cout << "creating " << graph_name << endl;
+		}
+		//::g.print(::file_graph);
+		cnf_tseitin.print_gr(::file_graph);
+		fclose(::file_graph);
+	}
+	bool skip_prvr = 0;
 
 	//getchar();
-	if (!skipprvr){
+	if (!skip_prvr){
 		if (::file_writing) {
 			cout << "creating " << proof_name << endl;
 		}
@@ -1467,9 +1755,10 @@ int main (int argc, char** argv) {
 
 		ofstream stats; 
 		if (::file_writing) {
-			stats.open("stats.txt", ios::app);
-			//stats << " n " << "\t" << "s" << "\t" << "#vars" << "\t" << "#c " << "\t" << "#lines" << "\t" << "#add" << "\t" << "#del" << "\t" <<  "time elapsed "  << endl;
+			stats.open(stats_name, ios::app);
+			stats <<" \n\n n " << "\t" << "s" << "\t" << "#vars" << "\t" << "#c " << "\t" << "#lines" << "\t" << "#add" << "\t" << "#del" << "\t" <<  "time elapsed "  << endl;
 			stats << n << "\t" << seed << "\t" << ::max_ext_var << "\t" << 8 * (n - 2) << "\t" << ::proof_size << "\t" << ::ata_size + ::rata_size << "\t" << ::ate_size + ::rate_size << "\t" << duration << endl;
+			stats.close();
 		}
 		//getchar();
 	}

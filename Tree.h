@@ -1,4 +1,99 @@
 #pragma once
+
+struct Int_Edge{ //purely integer edges used to form tseitin graphs
+	int node1;
+int node2;
+
+Int_Edge(int x, int y) {
+	node1 = x;
+	node2 = y;
+}
+
+Int_Edge() {
+	node1 = 0;
+	node2 = 0;
+}
+
+void display() {
+	std::cout << "(" << node1 << "," << node2 << ")";
+}
+
+void print(FILE *graph) {
+	fprintf(graph, "(");
+	fprintf(graph, "%i", node1);
+	fprintf(graph, ",");
+	fprintf(graph, "%i", node2);
+	fprintf(graph, ")");
+}
+};
+
+struct Edge_Graph_Node {
+	Int_Edge data;
+	Edge_Graph_Node *next;
+
+	Edge_Graph_Node(int x, int y) {
+		data = Int_Edge(x, y);
+		next = nullptr;
+	}
+
+	Edge_Graph_Node() {
+		data = Int_Edge();
+		next = nullptr;
+	}
+};
+
+struct Edge_Graph {
+	Edge_Graph_Node *head;
+	Edge_Graph_Node *tail;
+
+	Edge_Graph() {
+		head = nullptr;
+		tail = nullptr;
+	}
+
+	void add(int x, int y) {
+		Edge_Graph_Node *temp = new Edge_Graph_Node;
+		temp->next = NULL;
+		temp->data = Int_Edge(x, y);
+
+		if (head == NULL) {
+			head = temp;
+			tail = temp;
+			temp = NULL;
+		}
+		else {
+
+			tail->next = temp;
+			tail = temp;
+		}
+	}
+
+	void display() {
+		Edge_Graph_Node *temp = new Edge_Graph_Node;
+		temp = head;
+		std::cout << "[";
+		while (temp != NULL) {
+			temp->data.display();
+			std::cout << ",";
+			temp = temp->next;
+		}
+		std::cout << "]" << std::endl;
+
+	}
+
+	void print(FILE *graph) {
+		Edge_Graph_Node *temp = new Edge_Graph_Node;
+		temp = head;
+		fprintf(graph, "[");
+		while (temp != NULL) {
+			temp->data.print(graph);
+			fprintf(graph, ",");
+			temp = temp->next;
+		}
+		fprintf(graph, "]");
+	}
+
+};
 struct P_Node {
 	int input;
 	int output;

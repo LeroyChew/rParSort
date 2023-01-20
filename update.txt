@@ -1,0 +1,9 @@
+Update
+
+In order to better control the permutations, new features have been added
+- option to produce set permutations that form clique minors
+- option to retry permutation until a bounded distance permutation is found
+- option to form a permutation by random adjacent swaps
+- option to read a permutation from an input.txt file
+- "-o" now creates graph files (.gr) that detail the tseitin graphs
+- "-o" now outputs stats in a "_stats.txt" file specific for the file_name 
