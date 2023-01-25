@@ -1,0 +1,5 @@
+Update
+
+- option to form a permutation by random adjacent swaps, WITH a distance bound
+- "-o" now creates graph files (.gr) that detail the tseitin graphs of a tangled path which is a minor of the main tseitin graph
+-tangled paths, now remove self-loops (parallel edges are still intact).

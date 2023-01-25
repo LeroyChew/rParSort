@@ -37,11 +37,12 @@ std::vector<int> extvariables;
 bool file_writing = 0;
 bool file_reading = 0;
 bool clique_mode = 0;
-int distribution_mode = 0;
+int distribution_mode = 1;
 bool graph_writing = 0;
 FILE *file_proof;
 FILE *file_cnf;
 FILE *file_graph;
+FILE *file_half_graph;
 Cnf f;
 Edge_Graph g;
 
@@ -1327,7 +1328,7 @@ std::vector<int> distance_bounded_random(int n, int k) {
 	std::vector<int> best_vector = the_vector;
 	int best_distance = n;
 	int j = 0;
-	while (d>k && j< 10000000) {
+	while (d>k && j< 100000) {
 		j++;
 		for (int i = 0; i < the_vector.size(); i++) {
 			int r = i + rand() % (the_vector.size() - i); // careful here!
@@ -1403,6 +1404,7 @@ std::vector<int> clique_minor(int n, int k) {
 
 std::vector<int> random_swaps(int n, int k) {
 	std::vector<int> the_vector;
+	
 	for (int i = 0; i < n; i++) {
 		the_vector.push_back(i + 1);
 	}
@@ -1411,6 +1413,35 @@ std::vector<int> random_swaps(int n, int k) {
 		swap(the_vector[r], the_vector[r+1]);
 	}
 	cout <<  k << " random adjacent swaps" << endl;
+	return the_vector;
+}
+
+std::vector<int> random_swaps_distance(int n, int k) {
+	std::vector<int> the_vector;
+	//std::vector<int> the_vector_copy;
+	for (int i = 0; i < n; i++) {
+		the_vector.push_back(i + 1);
+		//the_vector_copy.push_back(i + 1);
+	}
+	for (int i = 0; i < 100000000; i++) {
+		/*
+		for (int j = 0; j < n; j++) {
+			the_vector_copy[j]= the_vector[j];
+		}
+		
+		swap(the_vector_copy[r], the_vector_copy[r + 1]);
+		int max = 0;
+		for (int j = 0; j < n; j++) {
+			if ((abs(the_vector_copy[j] - j - 1)) > max) {
+				max = abs(the_vector_copy[j] - j - 1);
+			}
+		}*/
+		int r = rand() % (the_vector.size() - 1); // careful here!
+		if (((abs(the_vector[r + 1] - r - 1))  < (k + 1))&& ((abs(the_vector[r] - r)) < (k + 1))) {
+				swap(the_vector[r], the_vector[r + 1]);
+		}
+	}
+	std::cout << k << " random adjacent swaps" << endl;
 	return the_vector;
 }
 
@@ -1522,6 +1553,7 @@ int main (int argc, char** argv) {
 	char cnf_name[100];
 	char proof_name[100];
 	char graph_name[100];
+	char half_graph_name[100];
 	char stats_name[100];
 	if (::file_writing) {
                 strcpy(cnf_name, fname);
@@ -1530,6 +1562,8 @@ int main (int argc, char** argv) {
                 strcat(proof_name, ".drat");
 				strcpy(graph_name, fname);
 				strcat(graph_name, ".gr");
+				strcpy(half_graph_name, fname);
+				strcat(half_graph_name, "_half.gr");
 				strcpy(stats_name, fname);
 				strcat(stats_name, "_stats.txt");
 
@@ -1586,6 +1620,9 @@ int main (int argc, char** argv) {
 		if (::distribution_mode == 3) {
 			myvector = random_swaps(n, k);
 		}
+		if (::distribution_mode == 4) {
+			myvector = random_swaps_distance(n, k);
+		}
 
 	}
 	else {
@@ -1635,10 +1672,12 @@ int main (int argc, char** argv) {
 	//Tseitin Graph creation
 	Edge_Graph tseitin;
 	Cnf cnf_tseitin;
+	Cnf half_cnf;
 
 	for (int i = 1; i < n - 2; i++) {
 		tseitin.add(i, i + 1);
 		cnf_tseitin.add_clause(Clause(i, i + 1, 0, 0));
+		half_cnf.add_clause(Clause(i, i + 1, 0, 0));
 	}
 	for (int i = 1; i < n - 2; i++) {
 		tseitin.add(n - 2 + i, n - 2 + i + 1);
@@ -1647,27 +1686,43 @@ int main (int argc, char** argv) {
 	if ((myvector[0]>1) && (myvector[0]<n)) {
 		tseitin.add(myvector[0] - 1, n - 1);
 		cnf_tseitin.add_clause(Clause(myvector[0] - 1, n - 1, 0, 0));
+		if (myvector[0] != 2) {
+			half_cnf.add_clause(Clause(myvector[0] - 1, 1, 0, 0));
+		}
 	}
 	if ((myvector[0] == 1)) {
 		tseitin.add(1, n - 1);
 		cnf_tseitin.add_clause(Clause(1, n - 1, 0, 0));
+		
 	}
 	if ((myvector[0] == n)) {
 		tseitin.add(n - 2, n - 1);
 		cnf_tseitin.add_clause(Clause(n - 2, n - 1, 0, 0));
+		if (myvector[0] > 2) {
+			half_cnf.add_clause(Clause(n - 2, 1, 0, 0));
+		}
 	}
 	for (int i = 1; i < n - 1; i++) {
 		if ((myvector[i]>1) && (myvector[i]<n)) {
 			tseitin.add(myvector[i] - 1, n - 2 + i);
 			cnf_tseitin.add_clause(Clause(myvector[i] - 1, n - 2 + i, 0, 0));
+			if (myvector[i]!= i) {
+				half_cnf.add_clause(Clause(myvector[i] - 1, i, 0, 0));
+			}
 		}
 		if ((myvector[i] == 1)) {
 			tseitin.add(1, n - 2 + i);
 			cnf_tseitin.add_clause(Clause(1, n - 2 + i, 0, 0));
+			if (i > 2) {
+				half_cnf.add_clause(Clause(1, i, 0, 0));
+			}
 		}
 		if ((myvector[i] == n)) {
 			tseitin.add(n - 2, n - 2 + i);
 			cnf_tseitin.add_clause(Clause(n - 2, n - 2 + i, 0, 0));
+			if (i <n-2) {
+				half_cnf.add_clause(Clause(n - 2, i, 0, 0));
+			}
 		}
 
 
@@ -1676,10 +1731,16 @@ int main (int argc, char** argv) {
 	if ((myvector[n - 1]>1) && (myvector[n - 1]<n)) {
 		tseitin.add(myvector[n - 1] - 1, 2 * n - 4);
 		cnf_tseitin.add_clause(Clause(myvector[n - 1] - 1, 2 * n - 4, 0, 0));
+		if (myvector[n - 1] <n - 1) {
+			half_cnf.add_clause(Clause(myvector[n - 1] - 1, n-2, 0, 0));
+		}
 	}
 	if ((myvector[n - 1] == 1)) {
 		tseitin.add(1, 2 * n - 4);
 		cnf_tseitin.add_clause(Clause(1, 2 * n - 4, 0, 0));
+		if (1 < n - 2) {
+			half_cnf.add_clause(Clause(1, n - 2, 0, 0));
+		}
 	}
 	if ((myvector[n - 1] == n)) {
 		tseitin.add(n - 2, 2 * n - 4);
@@ -1716,7 +1777,18 @@ int main (int argc, char** argv) {
 		cnf_tseitin.print_gr(::file_graph);
 		fclose(::file_graph);
 	}
-	bool skip_prvr = 0;
+
+	if (::file_writing) {
+		::file_half_graph = fopen(half_graph_name, "w");
+		::g = tseitin;
+		if (::file_writing) {
+			cout << "creating " << half_graph_name << endl;
+		}
+		//::g.print(::file_graph);
+		half_cnf.print_gr(::file_half_graph);
+		fclose(::file_half_graph);
+	}
+	bool skip_prvr = 1;
 
 	//getchar();
 	if (!skip_prvr){
