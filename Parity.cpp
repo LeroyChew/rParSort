@@ -1581,6 +1581,13 @@ int main (int argc, char** argv) {
 		}
 		else
 			puts("File successfully deleted");
+
+		if (remove(half_graph_name) != 0)
+		{
+			printf("No file to replace creating new %s file\n", half_graph_name);
+		}
+		else
+			puts("File successfully deleted");
 		if (remove(stats_name) != 0)
 		{
 			printf("No file to replace creating new %s file\n", stats_name);
@@ -1672,12 +1679,14 @@ int main (int argc, char** argv) {
 	//Tseitin Graph creation
 	Edge_Graph tseitin;
 	Cnf cnf_tseitin;
+	Edge_Graph half_tseitin;
 	Cnf half_cnf;
 
 	for (int i = 1; i < n - 2; i++) {
 		tseitin.add(i, i + 1);
 		cnf_tseitin.add_clause(Clause(i, i + 1, 0, 0));
 		half_cnf.add_clause(Clause(i, i + 1, 0, 0));
+		half_tseitin.add(i, i + 1);
 	}
 	for (int i = 1; i < n - 2; i++) {
 		tseitin.add(n - 2 + i, n - 2 + i + 1);
@@ -1686,8 +1695,9 @@ int main (int argc, char** argv) {
 	if ((myvector[0]>1) && (myvector[0]<n)) {
 		tseitin.add(myvector[0] - 1, n - 1);
 		cnf_tseitin.add_clause(Clause(myvector[0] - 1, n - 1, 0, 0));
-		if (myvector[0] != 2) {
+		if (myvector[0] > 3) {
 			half_cnf.add_clause(Clause(myvector[0] - 1, 1, 0, 0));
+			half_tseitin.add(myvector[0] - 1, 1);
 		}
 	}
 	if ((myvector[0] == 1)) {
@@ -1698,16 +1708,18 @@ int main (int argc, char** argv) {
 	if ((myvector[0] == n)) {
 		tseitin.add(n - 2, n - 1);
 		cnf_tseitin.add_clause(Clause(n - 2, n - 1, 0, 0));
-		if (myvector[0] > 2) {
+		if (myvector[0] > 3) {
 			half_cnf.add_clause(Clause(n - 2, 1, 0, 0));
+			half_tseitin.add(n - 2, 1);
 		}
 	}
 	for (int i = 1; i < n - 1; i++) {
 		if ((myvector[i]>1) && (myvector[i]<n)) {
 			tseitin.add(myvector[i] - 1, n - 2 + i);
 			cnf_tseitin.add_clause(Clause(myvector[i] - 1, n - 2 + i, 0, 0));
-			if (myvector[i]!= i) {
+			if (((myvector[i]-1)> (i+1))||((myvector[i] - 1)< (i -1))) {
 				half_cnf.add_clause(Clause(myvector[i] - 1, i, 0, 0));
+				half_tseitin.add(myvector[i] - 1, i);
 			}
 		}
 		if ((myvector[i] == 1)) {
@@ -1715,13 +1727,15 @@ int main (int argc, char** argv) {
 			cnf_tseitin.add_clause(Clause(1, n - 2 + i, 0, 0));
 			if (i > 2) {
 				half_cnf.add_clause(Clause(1, i, 0, 0));
+				half_tseitin.add(1, i);
 			}
 		}
 		if ((myvector[i] == n)) {
 			tseitin.add(n - 2, n - 2 + i);
 			cnf_tseitin.add_clause(Clause(n - 2, n - 2 + i, 0, 0));
-			if (i <n-2) {
+			if (i <n-3) {
 				half_cnf.add_clause(Clause(n - 2, i, 0, 0));
+				half_tseitin.add(n-2, i);
 			}
 		}
 
@@ -1731,15 +1745,17 @@ int main (int argc, char** argv) {
 	if ((myvector[n - 1]>1) && (myvector[n - 1]<n)) {
 		tseitin.add(myvector[n - 1] - 1, 2 * n - 4);
 		cnf_tseitin.add_clause(Clause(myvector[n - 1] - 1, 2 * n - 4, 0, 0));
-		if (myvector[n - 1] <n - 1) {
+		if (myvector[n - 1] <n - 2) {
 			half_cnf.add_clause(Clause(myvector[n - 1] - 1, n-2, 0, 0));
+			half_tseitin.add(myvector[n - 1] - 1, n - 2);
 		}
 	}
 	if ((myvector[n - 1] == 1)) {
 		tseitin.add(1, 2 * n - 4);
 		cnf_tseitin.add_clause(Clause(1, 2 * n - 4, 0, 0));
-		if (1 < n - 2) {
+		if (1 < n - 3) {
 			half_cnf.add_clause(Clause(1, n - 2, 0, 0));
+			half_tseitin.add(1, n - 2);
 		}
 	}
 	if ((myvector[n - 1] == n)) {
@@ -1785,6 +1801,7 @@ int main (int argc, char** argv) {
 			cout << "creating " << half_graph_name << endl;
 		}
 		//::g.print(::file_graph);
+		//half_tseitin.print(::file_half_graph);
 		half_cnf.print_gr(::file_half_graph);
 		fclose(::file_half_graph);
 	}
