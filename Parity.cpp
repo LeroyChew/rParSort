@@ -37,7 +37,7 @@ std::vector<int> extvariables;
 bool file_writing = 0;
 bool file_reading = 0;
 bool clique_mode = 0;
-int distribution_mode = 1;
+int distribution_mode = 0;
 bool graph_writing = 0;
 FILE *file_proof;
 FILE *file_cnf;
@@ -1805,7 +1805,7 @@ int main (int argc, char** argv) {
 		half_cnf.print_gr(::file_half_graph);
 		fclose(::file_half_graph);
 	}
-	bool skip_prvr = 1;
+	bool skip_prvr = 0;
 
 	//getchar();
 	if (!skip_prvr){
