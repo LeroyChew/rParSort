@@ -1,0 +1,8 @@
+Update
+
+- Mallows mode (-m 1)  now takes input float q or integer k to permute in the mallows distribution
+- graph files are now optional with -g
+- Graph files support both .gr and .edges format
+- proof modes with -p can now select between no proofs, drat- proofs and ER proofs
+- distance rerolls (previously -m 1) are now selected by -m 6
+- changes to terminal texts and debugging tools (requires manual editing .cpp file)

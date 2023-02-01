@@ -10,13 +10,17 @@
 
 #define ERPROOFONLY	0
 #define DISPLAY_LEVEL 1
-#define SWAP_LEVEL 1
 #define XOR_LEVEL 5
 #define DRAT_LEVEL 3
 #define TREE_PSWAPS_LEVEL 5
 #define TREE_ISWAPS_LEVEL 5
+#define PERMUTATION_LEVEL 2
 #define END_EXCEPTION_LEVEL 2
-#define SWAP_LEVEL	1
+#define SWAP_LEVEL	2
+#define UPSILON_LEVEL 2
+#define MAIN_LEVEL 2
+
+#define DEFAULT_GRAPH 3;
 
 Tree main_tree(1);
 Tree second_tree(1);
@@ -38,14 +42,20 @@ bool file_writing = 0;
 bool file_reading = 0;
 bool clique_mode = 0;
 int distribution_mode = 0;
+int proof_mode = 1;
+int graph_mode = DEFAULT_GRAPH;
 bool graph_writing = 0;
+bool er_proof_only = ERPROOFONLY;
 FILE *file_proof;
 FILE *file_cnf;
 FILE *file_graph;
 FILE *file_half_graph;
+FILE *file_graph2;
+FILE *file_half_graph2;
 Cnf f;
 Edge_Graph g;
 
+int display_level = DISPLAY_LEVEL;
 
 void xor_add(Cnf* p, int lit1, int lit2, int lit3) {
 	p->add_clause(Clause(-lit1, lit2, lit3, 0));
@@ -53,7 +63,7 @@ void xor_add(Cnf* p, int lit1, int lit2, int lit3) {
 	p->add_clause(Clause(lit1, lit2, -lit3, 0));
 	p->add_clause(Clause(-lit1, -lit2, -lit3, 0));
 
-	if (DISPLAY_LEVEL >= XOR_LEVEL) {
+	if (::display_level >= XOR_LEVEL) {
 		cout << "xor" << lit1 << " " << lit2 << " " << lit3 << "\n";
 	}
 }
@@ -79,20 +89,20 @@ Cnf parity_fwd(int n, Cnf P) {
 
 	//this can be copied=================
 	::main_tree.extend_source(n + 3, 2, 1);
-	
+
 	xor_add(&P, lit1, lit2, lit3);
-	
+
 
 	//====This is for forward order================================
 
 	for (int i = 3; i < n + 1; i++) {
 		lit1 = i;
-		lit2 = n + i ;
+		lit2 = n + i;
 		lit3 = n + i + 1;
 
-						  //this can be copied=================
+		//this can be copied=================
 		::main_tree.extend_source(n + i + 1, i, 1);
-		
+
 		xor_add(&P, lit1, lit2, lit3);
 
 		//====================================
@@ -100,7 +110,7 @@ Cnf parity_fwd(int n, Cnf P) {
 	lit1 = n + 1;
 	lit2 = n + 2;
 	lit3 = -(2 * n) - 1; //negate last Tseitin variable
-	
+
 	xor_add(&P, lit1, lit2, lit3);
 
 	::main_tree.end_lit1 = lit1;
@@ -122,18 +132,18 @@ Cnf parity(int n, std::vector<int> input_vector, int neg_lit) {
 	if (neg_lit == 1) {
 		lit2 = -lit2;
 	}
-	int lit3 = 2 * n+2;
-	
+	int lit3 = 2 * n + 2;
+
 	xor_add(&P, lit1, lit2, lit3);
 
 	for (int i = 3; i < n + 1; i++) {
-		lit1 = input_vector[i-1];
-		if (neg_lit == i-1) {
+		lit1 = input_vector[i - 1];
+		if (neg_lit == i - 1) {
 			lit1 = -lit1;
 		}
-		lit2 = 2*n-1 + i; //second set of Tseitin variables
+		lit2 = 2 * n - 1 + i; //second set of Tseitin variables
 		lit3 = 2 * n + i;//second set of Tseitin variables
-		
+
 		xor_add(&P, lit1, lit2, lit3);
 	}
 
@@ -142,11 +152,11 @@ Cnf parity(int n, std::vector<int> input_vector, int neg_lit) {
 	if (neg_lit == n) {
 		lit1 = -lit1;
 	}
-	if (neg_lit == n+1) {
+	if (neg_lit == n + 1) {
 		lit2 = -lit2;
 	}
-	lit3 = -(3 * n) ; //negate last Tseitin variable
-	
+	lit3 = -(3 * n); //negate last Tseitin variable
+
 
 	xor_add(&P, lit1, lit2, lit3);
 
@@ -154,21 +164,21 @@ Cnf parity(int n, std::vector<int> input_vector, int neg_lit) {
 }
 
 
-void clause_print(Clause C){
-for (int i = 0; i < 4; i++) {
-	if (C.lit[i] == 0) {
-		break;
+void clause_print(Clause C) {
+	for (int i = 0; i < 4; i++) {
+		if (C.lit[i] == 0) {
+			break;
+		}
+
+		fprintf(::file_proof, "%i", C.lit[i]);
+		fprintf(::file_proof, " ");
 	}
 
-	fprintf(::file_proof, "%i", C.lit[i]);
-	fprintf(::file_proof, " ");
-}
-
-fprintf(::file_proof, "0\n");
+	fprintf(::file_proof, "0\n");
 }
 
 void ata(Clause C) {
-	if (DISPLAY_LEVEL > DRAT_LEVEL) {
+	if (::display_level > DRAT_LEVEL) {
 		std::cout << "ATA ";
 		C.display();
 	}
@@ -185,13 +195,13 @@ void ata(Clause C) {
 }
 
 void rata(Clause C, int l) {
-	if (DISPLAY_LEVEL > DRAT_LEVEL) {
+	if (::display_level > DRAT_LEVEL) {
 		std::cout << l << " RATA ";
 		C.display();
 	}
 	::proof_size++;
 	::rata_size++;
-	
+
 	if (::file_writing) {
 		clause_print(C);
 	}
@@ -199,9 +209,9 @@ void rata(Clause C, int l) {
 }
 
 void ate(Clause C) {
-	if (DISPLAY_LEVEL > DRAT_LEVEL) {
+	if (::display_level > DRAT_LEVEL) {
 		std::cout << "ATE ";
-		
+
 		C.display();
 	}
 	::proof_size++;
@@ -214,28 +224,28 @@ void ate(Clause C) {
 }
 
 void rate(Clause C, int l) {
-	if (DISPLAY_LEVEL > DRAT_LEVEL) {
+	if (::display_level > DRAT_LEVEL) {
 		std::cout << l << " RATE ";
-		
+
 		C.display();
 	}
 	::proof_size++;
 	::rate_size++;
 
-	if (::file_writing){
+	if (::file_writing) {
 
 		fprintf(::file_proof, "d ");
 		clause_print(C);
-		
+
 
 	}
-	
+
 	return;
 }
 
 void clause_shift(int lit1, int lit2, int lit3, int lit4, int elim) {
 
-	if (ERPROOFONLY) {
+	if (::er_proof_only) {
 		::max_ext_var++;
 		::extvariables[abs(elim) - 1] = max_ext_var;
 
@@ -255,7 +265,7 @@ void clause_shift(int lit1, int lit2, int lit3, int lit4, int elim) {
 	Clause tern7(-lit1, lit2, -lit3, -lit4);
 	Clause tern8(-lit1, -lit2, lit3, -lit4);
 
-	if (DISPLAY_LEVEL > XOR_LEVEL) {
+	if (::display_level > XOR_LEVEL) {
 		cout << "adding terns" << endl;
 	}
 	ata(tern1);
@@ -266,16 +276,16 @@ void clause_shift(int lit1, int lit2, int lit3, int lit4, int elim) {
 	ata(tern6);
 	ata(tern7);
 	ata(tern8);
-	if (ERPROOFONLY) {
-		
-		if (DISPLAY_LEVEL > XOR_LEVEL) {
+	if (::er_proof_only) {
+
+		if (::display_level > XOR_LEVEL) {
 			cout << "adding lower xors" << endl;
 		}
 		rata(Clause(-elim, lit3, lit4, 0), -elim);
 		rata(Clause(elim, -lit3, lit4, 0), -elim);
 		rata(Clause(elim, lit3, -lit4, 0), -elim);
 		rata(Clause(-elim, -lit3, -lit4, 0), -elim);
-		
+
 		//Resolve on lit3
 		ata(Clause(-lit1, -lit2, -elim, lit4));
 		ata(Clause(-lit1, -lit2, -elim, -lit4));
@@ -288,18 +298,18 @@ void clause_shift(int lit1, int lit2, int lit3, int lit4, int elim) {
 		//resolve on lit4
 
 
-		if (DISPLAY_LEVEL > XOR_LEVEL) {
+		if (::display_level > XOR_LEVEL) {
 			cout << "adding upper xors" << endl;
 		}
 		ata(Clause(-elim, lit1, lit2, 0));
 		ata(Clause(elim, -lit1, lit2, 0));
 		ata(Clause(elim, lit1, -lit2, 0));
 		ata(Clause(-elim, -lit1, -lit2, 0));
-			}
+	}
 	else {
 
-		
-		if (DISPLAY_LEVEL > XOR_LEVEL) {
+
+		if (::display_level > XOR_LEVEL) {
 			cout << "eliminating upper xors" << endl;
 		}
 
@@ -307,31 +317,31 @@ void clause_shift(int lit1, int lit2, int lit3, int lit4, int elim) {
 		rate(Clause(elim, lit2, -lit3, 0), elim);
 		rate(Clause(elim, -lit1, lit4, 0), elim);
 		rate(Clause(elim, lit1, -lit4, 0), elim);
-		if (DISPLAY_LEVEL > XOR_LEVEL) {
+		if (::display_level > XOR_LEVEL) {
 			cout << "eliminating lower xors" << endl;
 		}
 		rate(Clause(-elim, lit2, lit3, 0), -elim);
 		rate(Clause(-elim, -lit2, -lit3, 0), -elim);
 		rate(Clause(-elim, lit1, lit4, 0), -elim);
 		rate(Clause(-elim, -lit1, -lit4, 0), -elim);
-		
 
-		if (DISPLAY_LEVEL > XOR_LEVEL) {
+
+		if (::display_level > XOR_LEVEL) {
 			cout << "adding lower xors" << endl;
 		}
 		rata(Clause(-elim, lit3, lit4, 0), -elim);
 		rata(Clause(-elim, -lit3, -lit4, 0), -elim);
 		rata(Clause(-elim, lit1, lit2, 0), -elim);
 		rata(Clause(-elim, -lit1, -lit2, 0), -elim);
-		if (DISPLAY_LEVEL > XOR_LEVEL) {
+		if (::display_level > XOR_LEVEL) {
 			cout << "adding upper xors" << endl;
 		}
 		rata(Clause(elim, -lit3, lit4, 0), elim);
 		rata(Clause(elim, lit3, -lit4, 0), elim);
 		rata(Clause(elim, -lit1, lit2, 0), elim);
 		rata(Clause(elim, lit1, -lit2, 0), elim);
-		
-		if (DISPLAY_LEVEL > XOR_LEVEL) {
+
+		if (::display_level > XOR_LEVEL) {
 			cout << "eliminating terns" << endl;
 		}
 		ate(tern1);
@@ -342,9 +352,9 @@ void clause_shift(int lit1, int lit2, int lit3, int lit4, int elim) {
 		ate(tern6);
 		ate(tern7);
 		ate(tern8);
-		}
-	return;
 	}
+	return;
+}
 
 bool swap_end(T_Node* swap1, bool dir) {
 	bool dir1 = swap1->lr;
@@ -373,12 +383,12 @@ bool swap_end(T_Node* swap1, bool dir) {
 
 	clause_shift(lit_par2, lit_swap1, lit_no_swap, lit_swap2, lit_par1);
 	if (dir == 1) {
-		::main_tree.end_lit2=lit_swap1;
+		::main_tree.end_lit2 = lit_swap1;
 	}
 	else {
 		::main_tree.end_lit1 = lit_swap1;
 	}
-	if (DISPLAY_LEVEL > END_EXCEPTION_LEVEL) {
+	if (::display_level > END_EXCEPTION_LEVEL) {
 		::main_tree.print();
 	}
 	if (dir1 == 0) {
@@ -437,7 +447,7 @@ void swap_down(T_Node* swap1, bool dir) {
 	//Put Cnf stuff here
 	clause_shift(par1->data, swap2->data, lit_no_swap, swap1->data, other_child->data);
 
-	if (DISPLAY_LEVEL > TREE_ISWAPS_LEVEL) {
+	if (::display_level > TREE_ISWAPS_LEVEL) {
 		::main_tree.print();
 	}
 	return;
@@ -474,7 +484,7 @@ bool swap_up(T_Node* swap1) {
 	lit_swap2 = swap2->data;
 	swap1->parent = par2;
 
-        // don't assign a variable to the same value in both branches
+	// don't assign a variable to the same value in both branches
 
 	int lit_no_swap;
 	if (dir1 == 0) {
@@ -492,8 +502,8 @@ bool swap_up(T_Node* swap1) {
 
 
 	clause_shift(lit_par2, lit_swap1, lit_no_swap, lit_swap2, lit_par1);
-	
-	if (DISPLAY_LEVEL > TREE_ISWAPS_LEVEL) {
+
+	if (::display_level > TREE_ISWAPS_LEVEL) {
 		::main_tree.print();
 	}
 
@@ -538,11 +548,11 @@ Tree rebalance(Tree g, bool r) {//a0 is Tseitin variable
 
 	Tree g1(g.source->child1); //the left tree
 	Tree g2(g.source->child2); //the right tree
-	g1.depth = (int)floor(half_internals) +1;
-	g2.depth = (int)ceil(half_internals) +1;
+	g1.depth = (int)floor(half_internals) + 1;
+	g2.depth = (int)ceil(half_internals) + 1;
 	g.depth = max(g1.depth, g2.depth) + 1;
-	g1=rebalance(g1, 0);
-	g2=rebalance(g2, 1);
+	g1 = rebalance(g1, 0);
+	g2 = rebalance(g2, 1);
 	g.depth = max(g1.depth, g2.depth) + 1;
 	//merge the two cnfs and return
 	return g;
@@ -560,7 +570,7 @@ T_Node* sel_leaf(int i, int n, T_Node* t) {
 	}
 	else
 	{
-		return sel_leaf(j- (int)floor(m), n- (int)floor(m), t->child2);
+		return sel_leaf(j - (int)floor(m), n - (int)floor(m), t->child2);
 	}
 
 }
@@ -592,7 +602,7 @@ T_Node* subroutine_tries1(T_Node* selection, int range_up, float range_mid, int*
 		select_pos->top().tries++;
 
 		if (!end_except) {
-			if (DISPLAY_LEVEL > SWAP_LEVEL) {
+			if (::display_level > SWAP_LEVEL) {
 				cout << "moving right" << endl;
 			}
 			selection = selection->child2;
@@ -603,18 +613,18 @@ T_Node* subroutine_tries1(T_Node* selection, int range_up, float range_mid, int*
 	return selection;
 }
 T_Node* subroutine_tries2(T_Node* selection, bool* end_except, bool* is_selection_a_leaf, stack<SwapSelCombo>* select_pos) {
-		if (DISPLAY_LEVEL > SWAP_LEVEL) {
-			cout << "moving up" << endl;
-		}
-		if (selection->parent != NULL) {
-			selection = selection->parent;
-		}
-		else {
-			*end_except = 1;
-		}
-		*is_selection_a_leaf = 0;
-		select_pos->pop();
-		return selection;
+	if (::display_level > SWAP_LEVEL) {
+		cout << "moving up" << endl;
+	}
+	if (selection->parent != NULL) {
+		selection = selection->parent;
+	}
+	else {
+		*end_except = 1;
+	}
+	*is_selection_a_leaf = 0;
+	select_pos->pop();
+	return selection;
 
 }
 T_Node* subroutine_endlit_normal(int* range_up, int* range_down, float* range_mid, T_Node* selection, int* enddata, bool* enddir, int* endvalue, bool* is_selection_a_leaf, int n) {
@@ -628,7 +638,7 @@ T_Node* subroutine_endlit_normal(int* range_up, int* range_down, float* range_mi
 	selection = new T_Node(*enddata);
 	::main_tree.source->child3 = selection;
 	selection->parent = ::main_tree.source;
-	*range_mid = (*range_up + *range_down) / 2.0; 
+	*range_mid = (*range_up + *range_down) / 2.0;
 	if ((int)ceil(*range_mid) <= *endvalue) {
 		swap_end(::main_tree.source->child1, *enddir);
 		*range_down = (int)ceil(*range_mid);
@@ -642,7 +652,7 @@ T_Node* subroutine_endlit_normal(int* range_up, int* range_down, float* range_mi
 
 }
 
-T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_down, float* range_mid,  bool* in_pos,  bool* is_selection_a_leaf, bool* end_except, bool* enddir, T_Node* selection, std::vector<int, std::allocator<int> >* inp_vector, stack<SwapSelCombo>* select_pos) {
+T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_down, float* range_mid, bool* in_pos, bool* is_selection_a_leaf, bool* end_except, bool* enddir, T_Node* selection, std::vector<int, std::allocator<int> >* inp_vector, stack<SwapSelCombo>* select_pos) {
 	if (*is_selection_a_leaf) {
 		int value = selection->data;
 		if (swap_pos == 0) {
@@ -657,8 +667,8 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 		T_Node* selection2 = selection;
 		//getchar();
 
-		if (DISPLAY_LEVEL > SWAP_LEVEL) {
-			cout << "found leaf with data " << selection->data << "and value " << value << endl;
+		if (::display_level > SWAP_LEVEL) {
+			cout << "found leaf with data " << selection->data << " and value " << value << endl;
 		}
 		if (value != select_pos->top().lbound || value != select_pos->top().ubound) {
 			if (!*end_except) {
@@ -676,8 +686,8 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 					first_level_exception = 1;
 				}
 
-				if (DISPLAY_LEVEL > SWAP_LEVEL) {
-					cout << selection->data << "not in range " << *range_down << "to" << *range_up << endl;
+				if (::display_level > SWAP_LEVEL) {
+					cout << selection->data << " not in range " << *range_down << " to " << *range_up << endl;
 				}
 				bool notinrange = 1;
 				in_leaf_position = 1;
@@ -687,8 +697,8 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 
 					if (select_pos_copy.top().lbound <= value && select_pos_copy.top().ubound >= value) {
 						notinrange = 0;
-						if (DISPLAY_LEVEL > SWAP_LEVEL) {
-							cout << selection->data << "is in the right range " << select_pos_copy.top().lbound << "to" << select_pos_copy.top().ubound << endl;
+						if (::display_level > SWAP_LEVEL) {
+							cout << selection->data << " is in the right range " << select_pos_copy.top().lbound << " to " << select_pos_copy.top().ubound << endl;
 						}
 						//::reverse.print();
 						if (value > n) {
@@ -719,8 +729,8 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 					}
 					else {
 
-						if (DISPLAY_LEVEL > SWAP_LEVEL) {
-							cout << selection->data << "not in range " << select_pos_copy.top().lbound << "to" << select_pos_copy.top().ubound << endl;
+						if (::display_level > SWAP_LEVEL) {
+							cout << selection->data << " not in range " << select_pos_copy.top().lbound << " to " << select_pos_copy.top().ubound << endl;
 						}
 						if (selection->lr == 0) {
 							first_level_exception = 0;
@@ -786,7 +796,7 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 										selection_swap = sibling->child2;
 										swap_down(selection, 0);
 										down_levels++;
-										if (DISPLAY_LEVEL > SWAP_LEVEL) {
+										if (::display_level > SWAP_LEVEL) {
 											cout << value << " moving right to " << *range_up << endl;
 										}
 									}
@@ -797,7 +807,7 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 									swap_down(selection, 1);
 									down_levels++;
 
-									if (DISPLAY_LEVEL > SWAP_LEVEL) {
+									if (::display_level > SWAP_LEVEL) {
 										cout << value << " moving left to " << *range_up - 1 << endl;
 									}
 								}
@@ -811,7 +821,7 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 										selection->parent->child2 = sibling;
 										selection->lr = 0;
 										down_levels++;
-										if (DISPLAY_LEVEL > SWAP_LEVEL) {
+										if (::display_level > SWAP_LEVEL) {
 											cout << selection->data << " CASE A2 swapping left with sibling " << sibling->data << endl;
 										}
 									}
@@ -819,7 +829,7 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 										selection_swap = sibling->child1;
 										swap_down(selection, 1);
 										down_levels++;
-										if (DISPLAY_LEVEL > SWAP_LEVEL) {
+										if (::display_level > SWAP_LEVEL) {
 											cout << value << " CASE A3 moving left to " << range_up << endl;
 										}
 									}
@@ -829,7 +839,7 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 									selection_swap = sibling->child1;
 									swap_down(selection, 1);
 									down_levels++;
-									if (DISPLAY_LEVEL > SWAP_LEVEL) {
+									if (::display_level > SWAP_LEVEL) {
 										cout << value << " CASE A1 moving left to " << range_up << endl;
 									}
 								}
@@ -843,7 +853,7 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 								selection->lr = 0;
 								selection_swap = sibling;
 								down_levels++;
-								if (DISPLAY_LEVEL > SWAP_LEVEL) {
+								if (::display_level > SWAP_LEVEL) {
 									cout << value << "CASE B swapping left with sibling " << sibling->data << endl;
 								}
 							}
@@ -855,7 +865,7 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 									selection->lr = 1;
 									selection_swap = sibling;
 									down_levels++;
-									if (DISPLAY_LEVEL > SWAP_LEVEL) {
+									if (::display_level > SWAP_LEVEL) {
 										cout << selection->data << "CASE C swapping right with sibling " << sibling->data << endl;
 									}
 								}
@@ -872,8 +882,8 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 								swap_down(selection, 1);
 
 								*range_down = (int)ceil(*range_mid);
-								if (DISPLAY_LEVEL > SWAP_LEVEL) {
-									cout << selection->data << " moving right " << *range_down << "to" << *range_up << endl;
+								if (::display_level > SWAP_LEVEL) {
+									cout << selection->data << " moving right " << *range_down << " to " << *range_up << endl;
 								}
 							}
 							else {
@@ -882,8 +892,8 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 								swap_down(selection, 0);
 
 								*range_up = (int)ceil(*range_mid) - 1;
-								if (DISPLAY_LEVEL > SWAP_LEVEL) {
-									cout << selection->data << " moving left " << *range_down << "to" << *range_up << endl;
+								if (::display_level > SWAP_LEVEL) {
+									cout << selection->data << " moving left " << *range_down << " to " << *range_up << endl;
 								}
 							}
 						}
@@ -902,14 +912,14 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 							first_level_exception = 2;
 							if (ceil(*range_mid) <= value) {
 								*range_down = (int)ceil(*range_mid);
-								if (DISPLAY_LEVEL > SWAP_LEVEL) {
-									cout << selection->data << " moving right " << *range_down << "to" << *range_up << endl;
+								if (::display_level > SWAP_LEVEL) {
+									cout << selection->data << " moving right " << *range_down << " to " << *range_up << endl;
 								}
 							}
 							else {
 								*range_up = (int)ceil(*range_mid) - 1;
-								if (DISPLAY_LEVEL > SWAP_LEVEL) {
-									cout << selection->data << " moving left " << *range_down << "to" << *range_up << endl;
+								if (::display_level > SWAP_LEVEL) {
+									cout << selection->data << " moving left " << *range_down << " to " << *range_up << endl;
 								}
 							}
 						}
@@ -927,8 +937,8 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 				while (down_levels > 0) {
 					down_levels--;
 					bool g = swap_up(selection_swap);
-					if (DISPLAY_LEVEL > SWAP_LEVEL) {
-						cout << " moving " << selection_swap->data << "upwards" << endl;
+					if (::display_level > SWAP_LEVEL) {
+						cout << "moving " << selection_swap->data << " upwards" << endl;
 					}
 				}
 			}
@@ -943,8 +953,8 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 						down_swap_dir2 = 1;
 					}
 					swap_down(selection_swap, down_swap_dir2);
-					if (DISPLAY_LEVEL > SWAP_LEVEL) {
-						cout << " moving " << selection_swap->data << "downwards" << endl;
+					if (::display_level > SWAP_LEVEL) {
+						cout << "moving " << selection_swap->data << " downwards " << endl;
 					}
 					reverse_swaps.pop();
 				}
@@ -958,7 +968,7 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 				selection = selection_swap;
 			}
 		}
-		if (DISPLAY_LEVEL > TREE_PSWAPS_LEVEL) {
+		if (::display_level > TREE_PSWAPS_LEVEL) {
 			::main_tree.print();
 		}
 		select_pos->top().tries = 2;
@@ -968,14 +978,14 @@ T_Node* subroutine_sel_is_leaf(int swap_pos, int n, int* range_up, int* range_do
 }
 
 
-T_Node* subroutine_not_endexcept(bool* is_selection_a_leaf, stack<SwapSelCombo>* select_pos, bool* end_except, T_Node* selection, int* range_up, int* range_down, float* range_mid) 
+T_Node* subroutine_not_endexcept(bool* is_selection_a_leaf, stack<SwapSelCombo>* select_pos, bool* end_except, T_Node* selection, int* range_up, int* range_down, float* range_mid)
 {
 	if (selection->child1 != NULL) {
 		*is_selection_a_leaf = 0;
 		select_pos->top().tries++;
 
 		if (!*end_except) {
-			if (DISPLAY_LEVEL > SWAP_LEVEL) {
+			if (::display_level > SWAP_LEVEL) {
 				cout << "moving left" << endl;
 			}
 			selection = selection->child1;
@@ -988,7 +998,7 @@ T_Node* subroutine_not_endexcept(bool* is_selection_a_leaf, stack<SwapSelCombo>*
 
 string read_line() {
 	char * input = new char[256];
-	std::cin>> input;
+	std::cin >> input;
 	getchar();
 	return input;
 }
@@ -1001,9 +1011,9 @@ void swapping(int n, Cnf f, std::vector<int> inp_vector) {
 		int range_down = 1; //the currently selected node has a range of positions
 		int range_up = n;
 		stack<SwapSelCombo> select_pos; //swapselcombo
-		select_pos.push(SwapSelCombo(range_down, range_up+2, 0, 0));
-		if (DISPLAY_LEVEL >= END_EXCEPTION_LEVEL) {
-			cout << "pushing excp" << range_down << " " << range_up + 2 << endl;
+		select_pos.push(SwapSelCombo(range_down, range_up + 2, 0, 0));
+		if (::display_level >= END_EXCEPTION_LEVEL) {
+			cout << "pushing excp " << range_down << " " << range_up + 2 << endl;
 		}
 		select_pos.push(SwapSelCombo(range_down, range_up, 0, 0));
 		bool is_selection_a_leaf = 0;
@@ -1012,9 +1022,9 @@ void swapping(int n, Cnf f, std::vector<int> inp_vector) {
 			is_selection_a_leaf = 1;
 			range_down = select_pos.top().lbound;
 			range_up = select_pos.top().ubound;
-			float range_mid = (range_down + range_up)/ 2.0;
+			float range_mid = (range_down + range_up) / 2.0;
 			if (select_pos.top().tries == 0) {
-					selection = subroutine_not_endexcept(&is_selection_a_leaf, &select_pos, &end_except, selection, &range_up, &range_down, &range_mid);
+				selection = subroutine_not_endexcept(&is_selection_a_leaf, &select_pos, &end_except, selection, &range_up, &range_down, &range_mid);
 			}
 			else {
 				if (select_pos.top().tries == 1) {
@@ -1027,7 +1037,7 @@ void swapping(int n, Cnf f, std::vector<int> inp_vector) {
 				}
 			}
 			bool enddir = 0;
-			if(end_except && (!select_pos.empty())) { //deal with endlits
+			if (end_except && (!select_pos.empty())) { //deal with endlits
 				int endvalue;
 
 				if (select_pos.top().tries == 0) {
@@ -1038,32 +1048,32 @@ void swapping(int n, Cnf f, std::vector<int> inp_vector) {
 					enddir = 1;
 				}
 
-				if (DISPLAY_LEVEL > END_EXCEPTION_LEVEL) {
+				if (::display_level > END_EXCEPTION_LEVEL) {
 					cout << "found endleaf with data " << endvalue;
 				}
 				int enddata = endvalue;
 
 				endvalue = abs(inp_vector[endvalue - 1]);
-				if (DISPLAY_LEVEL > END_EXCEPTION_LEVEL) {
-					cout <<"and value " << endvalue << endl;
+				if (::display_level > END_EXCEPTION_LEVEL) {
+					cout << "and value " << endvalue << endl;
 				}
-				if (endvalue > n){
-					if ((select_pos.top().tries == 0)&&(endvalue==n+2)) {
+				if (endvalue > n) {
+					if ((select_pos.top().tries == 0) && (endvalue == n + 2)) {
 						::main_tree.end_lit1 = ::main_tree.end_lit2;
-						::main_tree.end_lit2=enddata;
+						::main_tree.end_lit2 = enddata;
 					}
 					else {
 						if ((select_pos.top().tries == 1) && (endvalue == n + 1)) {
-							::main_tree.end_lit2= ::main_tree.end_lit1;
+							::main_tree.end_lit2 = ::main_tree.end_lit1;
 							::main_tree.end_lit1 = enddata;
 						}
 					}
 				}
 				else {
-					selection=subroutine_endlit_normal(&range_up, &range_down, &range_mid, selection, &enddata, &enddir, &endvalue, &is_selection_a_leaf, n);
+					selection = subroutine_endlit_normal(&range_up, &range_down, &range_mid, selection, &enddata, &enddir, &endvalue, &is_selection_a_leaf, n);
 				}
 			}
-			selection= subroutine_sel_is_leaf(0, n, &range_up, &range_down, &range_mid, &in_pos, &is_selection_a_leaf, &end_except, &enddir, selection, &inp_vector, &select_pos);
+			selection = subroutine_sel_is_leaf(0, n, &range_up, &range_down, &range_mid, &in_pos, &is_selection_a_leaf, &end_except, &enddir, selection, &inp_vector, &select_pos);
 		}
 	}
 	return;
@@ -1071,106 +1081,106 @@ void swapping(int n, Cnf f, std::vector<int> inp_vector) {
 
 void swapping_pair(int n, Cnf f, int a, int b) {
 	bool in_pos = 0;
-		in_pos = 1; //this will become false if any leaf is in the wrong position
-		T_Node* selection = ::main_tree.source;
-		int rangedown = 1; //the currently selected node has a range of positions
-		int rangeup = n;
-		stack<SwapSelCombo> selectpos; //swapselcombo
-		selectpos.push(SwapSelCombo(rangedown, rangeup + 2, 0, 0));
-		if (DISPLAY_LEVEL >= END_EXCEPTION_LEVEL) {
-			cout << "pushing excp" << rangedown << " " << rangeup + 2 << endl;
+	in_pos = 1; //this will become false if any leaf is in the wrong position
+	T_Node* selection = ::main_tree.source;
+	int rangedown = 1; //the currently selected node has a range of positions
+	int rangeup = n;
+	stack<SwapSelCombo> selectpos; //swapselcombo
+	selectpos.push(SwapSelCombo(rangedown, rangeup + 2, 0, 0));
+	if (::display_level >= END_EXCEPTION_LEVEL) {
+		cout << "pushing excp " << rangedown << " " << rangeup + 2 << endl;
+	}
+	selectpos.push(SwapSelCombo(rangedown, rangeup, 0, 0));
+	bool isselectionaleaf = 0;
+	bool endexcept = 0;
+	while (!isselectionaleaf) { //this traverses all nodes
+		isselectionaleaf = 1;
+
+		//recalculate the ranges
+		rangedown = selectpos.top().lbound;
+		rangeup = selectpos.top().ubound;
+		float rangemid = (rangedown + rangeup) / 2.0;
+		int tries = selectpos.top().tries;
+		if (endexcept) {
+
 		}
-		selectpos.push(SwapSelCombo(rangedown, rangeup, 0, 0));
-		bool isselectionaleaf = 0;
-		bool endexcept = 0;
-		while (!isselectionaleaf) { //this traverses all nodes
-			isselectionaleaf = 1;
-
-			//recalculate the ranges
-			rangedown = selectpos.top().lbound;
-			rangeup = selectpos.top().ubound;
-			float rangemid = (rangedown + rangeup)/ 2.0;
-			int tries = selectpos.top().tries;
-			if (endexcept) {
-
-			}
-			if (a<ceil(rangemid)) {
-					selection= subroutine_not_endexcept(&isselectionaleaf, &selectpos, &endexcept, selection, &rangeup, &rangedown, &rangemid);
+		if (a<ceil(rangemid)) {
+			selection = subroutine_not_endexcept(&isselectionaleaf, &selectpos, &endexcept, selection, &rangeup, &rangedown, &rangemid);
+		}
+		else {
+			if (a <= n) {
+				selection = subroutine_tries1(selection, rangeup, rangemid, &rangedown, &isselectionaleaf, &selectpos, endexcept);
 			}
 			else {
-				if (a<=n) {
-					selection = subroutine_tries1(selection, rangeup, rangemid, &rangedown, &isselectionaleaf, &selectpos, endexcept);
-				}
-				else {
-					if (a>n) {
-						selection = subroutine_tries2(selection, &endexcept, &isselectionaleaf, &selectpos);
-					}
+				if (a>n) {
+					selection = subroutine_tries2(selection, &endexcept, &isselectionaleaf, &selectpos);
 				}
 			}
-			bool enddir = 0;
-			if (endexcept && (!selectpos.empty())) { //new code to deal with endlits
-				int endvalue;
-
-				if (a==n+1) {
-					endvalue = ::main_tree.end_lit1;
-				}
-				else {
-					endvalue = ::main_tree.end_lit2;
-					enddir = 1;
-				}
-
-				if (DISPLAY_LEVEL > END_EXCEPTION_LEVEL) {
-					cout << "found endleaf with data " << endvalue;
-				}
-				int enddata = endvalue;
-
-				endvalue = b;
-				if (DISPLAY_LEVEL > END_EXCEPTION_LEVEL) {
-					cout << "and value " << endvalue << endl;
-				}
-				if (endvalue > n) {
-					if ((a == n + 1) && (endvalue == n + 2)) {
-						::main_tree.end_lit1 = ::main_tree.end_lit2;
-						::main_tree.end_lit2 = enddata;
-						return;
-
-					}
-					else {
-						if ((a == n + 2) && (endvalue == n + 1)) {
-							::main_tree.end_lit2 = ::main_tree.end_lit1;
-							::main_tree.end_lit1 = enddata;
-							return;
-						}
-					}
-				}
-				else {
-					selection = subroutine_endlit_normal(&rangeup, &rangedown, &rangemid, selection, &enddata, &enddir, &endvalue, &isselectionaleaf, n);
-				}
-
-			}
-			std::vector<int> dummy;
-			selection = subroutine_sel_is_leaf(0, n, &rangeup, &rangedown, &rangemid, &in_pos, &isselectionaleaf, &endexcept, &enddir, selection, &dummy , &selectpos);
 		}
+		bool enddir = 0;
+		if (endexcept && (!selectpos.empty())) { //new code to deal with endlits
+			int endvalue;
+
+			if (a == n + 1) {
+				endvalue = ::main_tree.end_lit1;
+			}
+			else {
+				endvalue = ::main_tree.end_lit2;
+				enddir = 1;
+			}
+
+			if (::display_level > END_EXCEPTION_LEVEL) {
+				cout << "found endleaf with data " << endvalue;
+			}
+			int enddata = endvalue;
+
+			endvalue = b;
+			if (::display_level > END_EXCEPTION_LEVEL) {
+				cout << " and value " << endvalue << endl;
+			}
+			if (endvalue > n) {
+				if ((a == n + 1) && (endvalue == n + 2)) {
+					::main_tree.end_lit1 = ::main_tree.end_lit2;
+					::main_tree.end_lit2 = enddata;
+					return;
+
+				}
+				else {
+					if ((a == n + 2) && (endvalue == n + 1)) {
+						::main_tree.end_lit2 = ::main_tree.end_lit1;
+						::main_tree.end_lit1 = enddata;
+						return;
+					}
+				}
+			}
+			else {
+				selection = subroutine_endlit_normal(&rangeup, &rangedown, &rangemid, selection, &enddata, &enddir, &endvalue, &isselectionaleaf, n);
+			}
+
+		}
+		std::vector<int> dummy;
+		selection = subroutine_sel_is_leaf(0, n, &rangeup, &rangedown, &rangemid, &in_pos, &isselectionaleaf, &endexcept, &enddir, selection, &dummy, &selectpos);
+	}
 	return;
 }
 
-Tree linear_tree(Tree g, bool r , int lb, int ub ) {
-	if (ub-lb<2) {
+Tree linear_tree(Tree g, bool r, int lb, int ub) {
+	if (ub - lb<2) {
 		return g; // already log depth
 	}
 
 	float m = (lb + ub) / 2.0;
-	int m_int = (int) ceil(m);
+	int m_int = (int)ceil(m);
 	Tree g1(g.source->child1); //the left tree
 	Tree g2(g.source->child2); //the right tree
 
-	g1 = linear_tree(g1, 0, lb, m_int-1);
+	g1 = linear_tree(g1, 0, lb, m_int - 1);
 	g2 = linear_tree(g2, 1, m_int, ub);
 
 	int reps;
 	if (!r) {
 		// we will add ceil n / 2 Tseitin variables to g2
-		reps= ub - m_int;
+		reps = ub - m_int;
 		for (int i = 0; i < reps; i++) {
 
 			int lit1 = g.source->data;
@@ -1187,7 +1197,7 @@ Tree linear_tree(Tree g, bool r , int lb, int ub ) {
 
 	}
 	else {
-		reps = m_int-lb-1;
+		reps = m_int - lb - 1;
 		for (int i = 0; i < reps; i++) {
 
 			int lit1 = g.source->data;
@@ -1216,7 +1226,7 @@ void final_equiv(int n, std::vector<int> invector) {
 	}
 	int l2 = invector[0];
 	int r2 = invector[1];
-	int u2 = 2 * n-2;
+	int u2 = 2 * n - 2;
 	int l1 = select->data;
 	int r1 = select->parent->child2->data;
 	int u1 = select->parent->data;
@@ -1249,14 +1259,14 @@ void final_equiv(int n, std::vector<int> invector) {
 	}
 
 
-	for (int i = 2; i < n-2; i++ ) {
+	for (int i = 2; i < n - 2; i++) {
 		select = select->parent;
 		int r1 = select->parent->child2->data;
 		int l2 = 2 * n + i - 4;
 		int l1 = select->data;
 		int r2 = invector[i];
 		int u1 = select->parent->data;
-		int u2 = 2 * n + i-3;
+		int u2 = 2 * n + i - 3;
 
 		l1 = ::extvariables[l1 - 1];
 		l2 = ::extvariables[l2 - 1];
@@ -1289,17 +1299,17 @@ void final_equiv(int n, std::vector<int> invector) {
 			flip = 0;
 		}
 		if (DISPLAY_LEVEL > SWAP_LEVEL) {
-			cout << "induction level" << i << endl;
+			cout << "induction level " << i << endl;
 		}
 	}
 
-	ata(Clause(invector[n-1] , invector[n - 2], 0, 0));
-	ata(Clause(invector[n-1]  , -invector[n - 2], 0, 0));
-	ata(Clause(-invector[n-1], invector[n - 2], 0, 0));
-	ata(Clause(-invector[n-1], -invector[n - 2], 0, 0));
+	ata(Clause(invector[n - 1], invector[n - 2], 0, 0));
+	ata(Clause(invector[n - 1], -invector[n - 2], 0, 0));
+	ata(Clause(-invector[n - 1], invector[n - 2], 0, 0));
+	ata(Clause(-invector[n - 1], -invector[n - 2], 0, 0));
 
-	ata(Clause(-invector[n-1], 0 , 0, 0));
-	ata(Clause(invector[n-1], 0, 0, 0));
+	ata(Clause(-invector[n - 1], 0, 0, 0));
+	ata(Clause(invector[n - 1], 0, 0, 0));
 
 	ata(Clause(0, 0, 0, 0));
 
@@ -1323,48 +1333,59 @@ std::vector<int> distance_bounded_random(int n, int k) {
 	for (int i = 0; i < n; i++) {
 		the_vector.push_back(i + 1);
 	}
-	
+
 	int d = n;
 	std::vector<int> best_vector = the_vector;
 	int best_distance = n;
 	int j = 0;
-	while (d>k && j< 100000) {
+	int h = 0;
+	int attempts = 100000;
+	if (::display_level >= PERMUTATION_LEVEL) {
+		cout << "attempting " << attempts << " swaps" << endl;
+	}
+	while (d>k && j< attempts) {
 		j++;
 		for (int i = 0; i < the_vector.size(); i++) {
 			int r = i + rand() % (the_vector.size() - i); // careful here!
 			swap(the_vector[i], the_vector[r]);
 			//cout << i << " " << r << " " << myvector[i] << endl;
 		}
-		int max_distance=0;
+		int max_distance = 0;
 		for (int i = 0; i < n; i++) {
-			if (abs(the_vector[i]-(i+1)) > max_distance) {
+			if (abs(the_vector[i] - (i + 1)) > max_distance) {
 				max_distance = abs(the_vector[i] - (i + 1));
 			}
 		}
 		if (max_distance < best_distance) {
 			best_distance = max_distance;
 			best_vector = the_vector;
+			h = j;
 		}
 		d = max_distance;
 	}
-		cout << "best distance is: " << best_distance << endl;
+	
+	if (::display_level >= PERMUTATION_LEVEL) {
+		cout << "best distance is: " << best_distance << " after " << h << " attempts" << endl;
+	}
+	
 	return best_vector;
 }
-
 
 std::vector<int> clique_minor(int n, int k) {
 	std::vector<int> the_vector;
 	for (int i = 0; i < n; i++) {
-		the_vector.push_back(i+1);
+		the_vector.push_back(i + 1);
 	}
-	
-	while(n < (k * (k - 3) + 2)) {
+
+	while (n < (k * (k - 3) + 2)) {
 		k--;
 	}
 	the_vector[k * (k - 3) + 1] = 2;
 	the_vector[1] = k * (k - 3) + 2;
-	//std::cout << "myvector 0: " << the_vector[0] << endl;
-	//std::cout << "myvector " << n - 1 << ": " << the_vector[n - 1] << endl;
+	if (::display_level >= PERMUTATION_LEVEL) {
+		std::cout << "myvector 0: " << the_vector[0] << endl;
+		std::cout << "myvector " << n - 1 << ": " << the_vector[n - 1] << endl;
+	}
 	int in;
 	int out = 2;
 	for (int i = 0; i<k - 2; i++) {
@@ -1373,11 +1394,15 @@ std::vector<int> clique_minor(int n, int k) {
 				in = i * (k - 3) + j + 1;
 				out++;
 				the_vector[in] = out;
-				//std::cout << "i" << i << "j"<< j << "myvector " << in << ": " << out<< endl;
-				in = (j + 2)*(k - 3) + i + 1;
+				if (::display_level >= PERMUTATION_LEVEL) {
+					std::cout << "i=" << i << " j=" << j << " myvector " << in << ": " << out << endl;
+					in = (j + 2)*(k - 3) + i + 1;
+				}
 				out++;
 				the_vector[in] = out;
-				//std::cout << "myvector " << in << ": " << out<< endl;
+				if (::display_level >= PERMUTATION_LEVEL) {
+					std::cout << "myvector " << in << ": " << out << endl;
+				}
 			}
 		}
 		else {
@@ -1385,7 +1410,9 @@ std::vector<int> clique_minor(int n, int k) {
 				in = i * (k - 3) + j + 1;
 				out++;
 				the_vector[in] = out;
-				//std::cout  << "i" << i << "j"<< j<< "myvector " << in << ": " << out<< endl;
+				if (::display_level >= PERMUTATION_LEVEL) {
+					std::cout << "i=" << i << " j=" << j << " myvector " << in << ": " << out << endl;
+				}
 				if (j<k - 4) {
 					in = (j + 3)*(k - 3) + i + 1;
 				}
@@ -1394,7 +1421,9 @@ std::vector<int> clique_minor(int n, int k) {
 				}
 				out++;
 				the_vector[in] = out;
-				//std::cout << "myvector " << in << ": " << out<< endl;
+				if (::display_level >= PERMUTATION_LEVEL) {
+					std::cout << "myvector " << in << ": " << out << endl;
+				}
 			}
 
 		}
@@ -1404,15 +1433,17 @@ std::vector<int> clique_minor(int n, int k) {
 
 std::vector<int> random_swaps(int n, int k) {
 	std::vector<int> the_vector;
-	
+
 	for (int i = 0; i < n; i++) {
 		the_vector.push_back(i + 1);
 	}
 	for (int i = 0; i < k; i++) {
 		int r = rand() % (the_vector.size() - 1); // careful here!
-		swap(the_vector[r], the_vector[r+1]);
+		swap(the_vector[r], the_vector[r + 1]);
 	}
-	cout <<  k << " random adjacent swaps" << endl;
+	if (::display_level >= PERMUTATION_LEVEL) {
+		cout << k << " random adjacent swaps" << endl;
+	}
 	return the_vector;
 }
 
@@ -1423,264 +1454,183 @@ std::vector<int> random_swaps_distance(int n, int k) {
 		the_vector.push_back(i + 1);
 		//the_vector_copy.push_back(i + 1);
 	}
-	for (int i = 0; i < 100000000; i++) {
+
+	int attempts = 1000000;
+
+	if (::display_level >= PERMUTATION_LEVEL) {
+		cout << "attempting "<< attempts << " swaps"<< endl;
+	}
+	int failed=0; 
+	
+	for (int i = 0; i < attempts; i++) {
 		/*
 		for (int j = 0; j < n; j++) {
-			the_vector_copy[j]= the_vector[j];
+		the_vector_copy[j]= the_vector[j];
 		}
-		
+
 		swap(the_vector_copy[r], the_vector_copy[r + 1]);
 		int max = 0;
 		for (int j = 0; j < n; j++) {
-			if ((abs(the_vector_copy[j] - j - 1)) > max) {
-				max = abs(the_vector_copy[j] - j - 1);
-			}
+		if ((abs(the_vector_copy[j] - j - 1)) > max) {
+		max = abs(the_vector_copy[j] - j - 1);
+		}
 		}*/
 		int r = rand() % (the_vector.size() - 1); // careful here!
-		if (((abs(the_vector[r + 1] - r - 1))  < (k + 1))&& ((abs(the_vector[r] - r)) < (k + 1))) {
-				swap(the_vector[r], the_vector[r + 1]);
+		if (((abs(the_vector[r + 1] - r - 1))  < (k + 1)) && ((abs(the_vector[r] - r)) < (k + 1))) {
+			swap(the_vector[r], the_vector[r + 1]);
 		}
+		else {
+			failed++;
+		}
+
+		
 	}
-	std::cout << k << " random adjacent swaps" << endl;
+	if (::display_level >= PERMUTATION_LEVEL) {
+		cout << failed << " swaps suppressed by maximum distance " << k << endl;
+	}
 	return the_vector;
 }
 
-int main (int argc, char** argv) {
-	int n = 100;
-	int k = n;
-	int seed = 12345;
-	char* fname = NULL;
-	//char** argv= "-o pr";
-	if (argc > 1) {
-		if (argv[1][0] == '-') { printf("c first parameter needs to be a positive number\n"); return 0; }
-		n = atoi(argv[1]);
+std::vector<double> upsilon(int n, double q) {
+	std::vector<double> the_vector;
+	if (::display_level >= UPSILON_LEVEL) {
+		cout << "upsilon:";
 	}
-	else { printf("c need to provide size\n"); return 0; }
-
-	std::vector<int> myvector;
-	std::vector<int> filevector;
-	::file_reading = 0;
-	ifstream checker;
-	checker.open("input.txt", ios::app);
-	int a;
-	int i = 0;
-	while ((checker >> a)&& (i<4)) {
-		i++;
-		if (i == 4) {
-			::file_reading =1;
-			cout << "detected input.txt" << endl;
+	double p;
+	p = (1-q)/(1 - pow(q, n));
+	for (int i = 0; i < n; i++) {
+		the_vector.push_back(p);
+		if (::display_level >= UPSILON_LEVEL) {
+			cout << " " << p;
 		}
+		p = p * q;
+		//the_vector_copy.push_back(i + 1);
 	}
-	checker.close();
+	if (::display_level >= UPSILON_LEVEL) {
+		cout << endl;
+	}
+	return the_vector;
+}
 
-	if (::file_reading == 1) {
-		std:fstream myfile("input.txt", std::ios_base::in);
-		int a;
-		int i = 0;
-		while (myfile >> a) {
-				filevector.push_back(a);
-				i++;
+std::vector<int> rev_mallows(int n, double q) {
+	std::vector<int> result;
+	if (n == 1) {
+		result.push_back(1);
+		if (::display_level >= PERMUTATION_LEVEL) {
+			cout << "upsilon: 1" << endl;
+			cout << "MallowsProcess(" << n << "," << q << "): 1"<< endl;
 		}
-		
-		std::vector<int> checkvector;
-		//checking bijectivity
-		for (int j = 0; j < i; j++) {
-			checkvector.push_back(0);
-		}
-		for (int j = 0; j < i; j++) {
-			checkvector[filevector[j]-1]++;
-		}
-		for (int j = 0; j < i; j++) {
-			if (checkvector[j] != 1) {
-				cout << "input.txt is not a permutation, reverting to seed" << endl;
-				::file_reading = 0;
-				break;
+		return result;
+	}
+	if (q >= 1) {
+		return uniform_random(n);
+		cout << "ERROR: q is meant to be <1" << endl;
+	}
+
+	std::vector<int> rminus1 = rev_mallows(n - 1, q);
+	std::vector<double> distribution = upsilon(n, q);
+	
+	double cumulative = 0;
+	double r = (double)(rand()) / (double)(RAND_MAX);
+	if (::display_level >= UPSILON_LEVEL) {
+		cout << "r=" << r << endl;
+	}
+	int v = 0;
+	while ((r > cumulative)) {
+		cumulative = cumulative + distribution[v];
+		v++;
+	}
+	v=v - 1;
+	if (::display_level >= PERMUTATION_LEVEL) {
+		cout << "MallowsProcess("<< n << "," << q <<"): ";
+	}
+	for (int i = 0; i < n; i++) {
+		if (i < v) {
+
+			result.push_back(rminus1[i]);
+			if (::display_level >= PERMUTATION_LEVEL) {
+				cout << rminus1[i] << " ";
 			}
 		}
-		if (::file_reading == 1) {
-			n = i;
-			myvector = filevector;
-		}
-
-	}
-	
-//	std::string fname = "output";
-        //const char* fname="test800";
-
- 
-
-	if (n < 4) {
-		cout << "ERROR: n is too small";
-		//getchar();
-		return 0;
-	}
-	
-		cout << "Running using size " << n << endl;
-
-      if ((argc > 2) && (argv[2][0] != '-')) seed = atoi (argv[2]);
-	srand(seed);
-	if (::file_reading == 0) {
-		cout << "Running using seed " << seed << endl;
-	}
-	for (int i = 1; i < argc; i++) {
-		if (argv[i][0] == '-') {
-			if (argv[i][1] == 'o') {
-				file_writing = 1;
-                                if (argc == i + 1) { printf ("c file name missing after -o\n"); 
-								return 0;
-								//strcat(fname, to_cstr(std::move(ss).str()));
-								}
-								else {
-									fname = argv[i + 1];
-								}
-			}
-			if (argv[i][1] == 'm') {
-				distribution_mode= atoi(argv[i+1]);
-				k= atoi(argv[i + 2]);
+		if (i == v) {
+			result.push_back(n);
+			if (::display_level >= PERMUTATION_LEVEL) {
+				cout << n << " ";
 			}
 		}
-
+		if (i > v) {
+			result.push_back(rminus1[i - 1]);
+			if (::display_level >= PERMUTATION_LEVEL) {
+				cout << rminus1[i-1] << " ";
+			}
+		}
 	}
-
-//	if (::file_writing) {
-//		cout << "Enter a file name to write to file" << endl;
-//		fname = read_line();
-//	}
-//	string cnf_name_s = (fname + ".cnf");
-//	string proof_name_s = (fname + ".drat");
-//	const char* cnf_name = cnf_name_s.c_str();
-//	const char* proof_name = proof_name_s.c_str();
-	char cnf_name[100];
-	char proof_name[100];
-	char graph_name[100];
-	char half_graph_name[100];
-	char stats_name[100];
-	if (::file_writing) {
-                strcpy(cnf_name, fname);
-                strcat(cnf_name, ".cnf");
-                strcpy(proof_name, fname);
-                strcat(proof_name, ".drat");
-				strcpy(graph_name, fname);
-				strcat(graph_name, ".gr");
-				strcpy(half_graph_name, fname);
-				strcat(half_graph_name, "_half.gr");
-				strcpy(stats_name, fname);
-				strcat(stats_name, "_stats.txt");
-
-		if (remove(proof_name) != 0)
-		{	printf("No file to replace creating new %s file\n", proof_name); }
-		else
-			puts("File successfully deleted");
-		if (remove(cnf_name) != 0)
-		{	printf("No file to replace creating new %s file\n", cnf_name); }
-		else
-			puts("File successfully deleted");
-		if (remove(graph_name) != 0)
-		{
-			printf("No file to replace creating new %s file\n", graph_name);
-		}
-		else
-			puts("File successfully deleted");
-
-		if (remove(half_graph_name) != 0)
-		{
-			printf("No file to replace creating new %s file\n", half_graph_name);
-		}
-		else
-			puts("File successfully deleted");
-		if (remove(stats_name) != 0)
-		{
-			printf("No file to replace creating new %s file\n", stats_name);
-		}
-		else
-			puts("File successfully deleted");
+	if (::display_level >= PERMUTATION_LEVEL) {
+		cout << endl;
 	}
-	//std::srand(unsigned(std::time(0)));
-	
+	return result;
+}
 
-	// set some values:
-	if (file_reading == 0) {
-		for (int i = 1; i < n + 1; ++i) myvector.push_back(i); // 1 2 3 4 5 6 7 8 9
+std::vector<int> mallows(int n, double q) {
+	std::vector<int> result;
+	std::vector<int> result_rev= rev_mallows(n, q);
+	for (int i = 0; i < n; i++) {
+		result.push_back(result_rev[n-i-1]);
 	}
-	//ER stuff in main
-	for (int i = 1; i<=3 * n - 6; ++i) ::extvariables.push_back(i); // 1 2 3 4 5 6 7 8 9
-	::max_ext_var = 3 * n - 6;
-	//::er_proof_only = ERPROOFONLY;
+	return result;
 
-	// using myrandom:
-//	std::random_shuffle(myvector.begin(), myvector.end(), order_random);
-//	std::shuffle(myvector.begin(), myvector.end(), order_random);
-	
+}
 
-	if (::file_reading == 0) {
-		// uniform distribution
-		
-		if (::distribution_mode == 0) {
-			myvector = uniform_random(n);
-		}
-		if (::distribution_mode == 1) {
-			myvector = distance_bounded_random(n, k);
-		}
-		if (::distribution_mode == 2) {
-			myvector = clique_minor(n, k);
-		}
-		if (::distribution_mode == 3) {
-			myvector = random_swaps(n, k);
-		}
-		if (::distribution_mode == 4) {
-			myvector = random_swaps_distance(n, k);
-		}
-
-	}
-	else {
-		cout << "shuffling skipped" << endl;
-		//getchar();
-	}
-
-	// print out content:
-	/*
-	std::cout << "myvector contains:";
-	for (std::vector<int>::iterator it = myvector.begin(); it != myvector.end(); ++it)
-		std::cout << ' ' << *it;
-
-	std::cout << '\n';
-	*/
-	ofstream vec_dump;
-	if (::file_writing) {
-		cout << "creating " << stats_name << endl;
-		vec_dump.open(stats_name, ios::app);
-		//stats << " n " << "\t" << "s" << "\t" << "#vars" << "\t" << "#c " << "\t" << "#lines" << "\t" << "#add" << "\t" << "#del" << "\t" <<  "time elapsed "  << endl;
-		//stats << n << "\t" << seed << "\t" << ::max_ext_var << "\t" << 8 * (n - 2) << "\t" << ::proof_size << "\t" << ::ata_size + ::rata_size << "\t" << ::ate_size + ::rate_size << "\t" << duration << endl;
-		for (int i = 0; i < myvector.size(); i++) {
-			vec_dump << myvector[i] << " ";
-			//cout << i << " " << r << " " << myvector[i] << endl;
-		}
-		vec_dump.close();
-	}
-
-	double duration;
-	std::clock_t start;
-
-	start = std::clock();
-	if (::file_writing) {
-		cout << "creating " << cnf_name << endl;
-	}
-	//Clause C = Clause(-1, 2, 3, 4);
-	int negativelit = order_random(n);
-	Cnf P= parity(n-2, myvector, negativelit);
-	//C.Display();
-	::max_ext_var = 3 * n - 6;
-	std::vector<int> revvector= myvector;
-
-	for (int i = 1; i < n+1; i++) {
-		revvector[myvector[i-1]-1] = i;
-	}
-
+void print_all_graphs(int n, std::vector<int> myvector, char* fname) {
 	//Tseitin Graph creation
 	Edge_Graph tseitin;
 	Cnf cnf_tseitin;
 	Edge_Graph half_tseitin;
 	Cnf half_cnf;
+	char graph_name[100];
+	char half_graph_name[100];
+	char edge_graph_name[100];
+	char edge_half_graph_name[100];
+	bool print_halves=0;
+	bool print_edges=0;
+	bool print_gr = 0;
+	if (::graph_mode == 0) {
+		print_halves = 0;
+		print_edges = 0;
+		print_gr = 0;
+	}
+	if (::graph_mode == 1) {
+		print_halves = 0;
+		print_edges = 0;
+		print_gr = 1;
+	}
+	if (::graph_mode == 2) {
+		print_halves = 0;
+		print_edges = 1;
+		print_gr = 0;
+	}
+	if (::graph_mode == 3) {
+		print_halves = 1;
+		print_edges = 0;
+		print_gr = 1;
+	}
+	if (::graph_mode == 4) {
+		print_halves = 1;
+		print_edges = 1;
+		print_gr = 0;
+	}
+
+	if (::graph_mode == 5) {
+		print_halves = 0;
+		print_edges = 1;
+		print_gr = 1;
+	}
+
+	if (::graph_mode == 6) {
+		print_halves = 1;
+		print_edges = 1;
+		print_gr = 1;
+	}
 
 	for (int i = 1; i < n - 2; i++) {
 		tseitin.add(i, i + 1);
@@ -1703,7 +1653,7 @@ int main (int argc, char** argv) {
 	if ((myvector[0] == 1)) {
 		tseitin.add(1, n - 1);
 		cnf_tseitin.add_clause(Clause(1, n - 1, 0, 0));
-		
+
 	}
 	if ((myvector[0] == n)) {
 		tseitin.add(n - 2, n - 1);
@@ -1717,7 +1667,7 @@ int main (int argc, char** argv) {
 		if ((myvector[i]>1) && (myvector[i]<n)) {
 			tseitin.add(myvector[i] - 1, n - 2 + i);
 			cnf_tseitin.add_clause(Clause(myvector[i] - 1, n - 2 + i, 0, 0));
-			if (((myvector[i]-1)> (i+1))||((myvector[i] - 1)< (i -1))) {
+			if (((myvector[i] - 1)> (i + 1)) || ((myvector[i] - 1)< (i - 1))) {
 				half_cnf.add_clause(Clause(myvector[i] - 1, i, 0, 0));
 				half_tseitin.add(myvector[i] - 1, i);
 			}
@@ -1733,9 +1683,9 @@ int main (int argc, char** argv) {
 		if ((myvector[i] == n)) {
 			tseitin.add(n - 2, n - 2 + i);
 			cnf_tseitin.add_clause(Clause(n - 2, n - 2 + i, 0, 0));
-			if (i <n-3) {
+			if (i <n - 3) {
 				half_cnf.add_clause(Clause(n - 2, i, 0, 0));
-				half_tseitin.add(n-2, i);
+				half_tseitin.add(n - 2, i);
 			}
 		}
 
@@ -1746,7 +1696,7 @@ int main (int argc, char** argv) {
 		tseitin.add(myvector[n - 1] - 1, 2 * n - 4);
 		cnf_tseitin.add_clause(Clause(myvector[n - 1] - 1, 2 * n - 4, 0, 0));
 		if (myvector[n - 1] <n - 2) {
-			half_cnf.add_clause(Clause(myvector[n - 1] - 1, n-2, 0, 0));
+			half_cnf.add_clause(Clause(myvector[n - 1] - 1, n - 2, 0, 0));
 			half_tseitin.add(myvector[n - 1] - 1, n - 2);
 		}
 	}
@@ -1762,28 +1712,17 @@ int main (int argc, char** argv) {
 		tseitin.add(n - 2, 2 * n - 4);
 		cnf_tseitin.add_clause(Clause(n - 2, 2 * n - 4, 0, 0));
 	}
-	/*
-	std::cout << "revvector contains:";
-	for (std::vector<int>::iterator it = revvector.begin(); it != revvector.end(); ++it)
-		std::cout << ' ' << *it;
 
-	std::cout << '\n';
-	*/
-	if (::file_writing) {
-		::file_cnf = fopen(cnf_name, "w");
-		
-		//cnffile << "p cnf " << 3 * n -6 << " " << P.cspace << "\n";
+	strcpy(graph_name, fname);
+	strcat(graph_name, ".gr");
+	strcpy(half_graph_name, fname);
+	strcat(half_graph_name, "_half.gr");
+	strcpy(edge_graph_name, fname);
+	strcat(edge_graph_name, ".edges");
+	strcpy(edge_half_graph_name, fname);
+	strcat(edge_half_graph_name, "_half.edges");
 
-		::f = P;
-		//::f.Display();
-		::f.print(::file_cnf);
-
-		fclose(::file_cnf);
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << "time for constructing CNF" << duration << endl;
-		//::reverse.print();
-	}
-	if (::file_writing) {
+	if (print_gr) {
 		::file_graph = fopen(graph_name, "w");
 		::g = tseitin;
 		if (::file_writing) {
@@ -1794,7 +1733,7 @@ int main (int argc, char** argv) {
 		fclose(::file_graph);
 	}
 
-	if (::file_writing) {
+	if (print_gr && print_halves) {
 		::file_half_graph = fopen(half_graph_name, "w");
 		::g = tseitin;
 		if (::file_writing) {
@@ -1805,10 +1744,385 @@ int main (int argc, char** argv) {
 		half_cnf.print_gr(::file_half_graph);
 		fclose(::file_half_graph);
 	}
+
+	if (print_edges) {
+		::file_graph2 = fopen(edge_graph_name, "w");
+		::g = tseitin;
+		if (::file_writing) {
+			cout << "creating " << edge_graph_name << endl;
+		}
+		//::g.print(::file_graph);
+		tseitin.print(::file_graph2);
+		fclose(::file_graph2);
+	}
+
+	if (print_edges && print_halves) {
+		::file_half_graph2 = fopen(edge_half_graph_name, "w");
+		::g = tseitin;
+		if (::file_writing) {
+			cout << "creating " << edge_half_graph_name << endl;
+		}
+		//::g.print(::file_graph);
+		half_tseitin.print(::file_half_graph2);
+		//half_cnf.print_gr(::file_half_graph);
+		fclose(::file_half_graph2);
+	}
+
+}
+
+int main(int argc, char** argv) {
 	bool skip_prvr = 0;
+	int n = 100;
+	int k = n;
+	double q = (double)k / (double)n;
+	int seed = 12345;
+	char* fname = NULL;
+	//char** argv= "-o pr";
+
+	if (argc > 1) {
+		if (argv[1][0] == '-') { printf("c first parameter needs to be a positive number\n"); return 0; }
+		n = atoi(argv[1]);
+	}
+	else { printf("c need to provide size\n"); return 0; }
+	/*
+	std::vector<int> test_vector=mallows(10,0.5);
+	for (int i = 0; i < 10; i++) {
+		cout << test_vector[i] << " ";
+	}
+	cout << endl;
+	getchar();
+	*/
+
+	std::vector<int> myvector;
+	std::vector<int> filevector;
+	::file_reading = 0;
+	ifstream checker;
+	checker.open("input.txt", ios::app);
+	int a;
+	int i = 0;
+	while ((checker >> a) && (i<4)) {
+		i++;
+		if (i == 4) {
+			::file_reading = 1;
+			cout << "detected input.txt" << endl;
+		}
+	}
+	checker.close();
+
+	if (::file_reading == 1) {
+	std:fstream myfile("input.txt", std::ios_base::in);
+		int a;
+		int i = 0;
+		while (myfile >> a) {
+			filevector.push_back(a);
+			i++;
+		}
+
+		std::vector<int> checkvector;
+		//checking bijectivity
+		for (int j = 0; j < i; j++) {
+			checkvector.push_back(0);
+		}
+		for (int j = 0; j < i; j++) {
+			checkvector[filevector[j] - 1]++;
+		}
+		for (int j = 0; j < i; j++) {
+			if (checkvector[j] != 1) {
+				cout << "input.txt is not a permutation, reverting to seed" << endl;
+				::file_reading = 0;
+				break;
+			}
+		}
+		if (::file_reading == 1) {
+			n = i;
+			myvector = filevector;
+		}
+
+	}
+
+	//	std::string fname = "output";
+	//const char* fname="test800";
+
+
+
+	if (n < 4) {
+		cout << "ERROR: n is too small";
+		//getchar();
+		return 0;
+	}
+
+	cout << "Running using size " << n << endl;
+
+	if ((argc > 2) && (argv[2][0] != '-')) seed = atoi(argv[2]);
+	srand(seed);
+	if (::file_reading == 0) {
+		cout << "Running using seed " << seed << endl;
+	}
+	for (int i = 1; i < argc; i++) {
+		if (argv[i][0] == '-') {
+			if (argv[i][1] == 'o') {
+				file_writing = 1;
+				if (argc == i + 1) {
+					printf("c file name missing after -o\n");
+					return 0;
+					//strcat(fname, to_cstr(std::move(ss).str()));
+				}
+				else {
+					fname = argv[i + 1];
+				}
+			}
+			if (argv[i][1] == 'm') {
+				::distribution_mode = atoi(argv[i + 1]);
+
+					q= atof(argv[i + 2]);
+
+					k = atoi(argv[i + 2]);
+
+			}
+
+			if (argv[i][1] == 'p') {
+				::proof_mode = atoi(argv[i + 1]);
+
+			}
+
+			if (argv[i][1] == 'g') {
+				::graph_mode = atoi(argv[i + 1]);
+
+			}
+		}
+
+	}
+
+	//	if (::file_writing) {
+	//		cout << "Enter a file name to write to file" << endl;
+	//		fname = read_line();
+	//	}
+	//	string cnf_name_s = (fname + ".cnf");
+	//	string proof_name_s = (fname + ".drat");
+	//	const char* cnf_name = cnf_name_s.c_str();
+	//	const char* proof_name = proof_name_s.c_str();
+	char cnf_name[100];
+	char proof_name[100];
+	char graph_name[100];
+	char half_graph_name[100];
+	char edge_graph_name[100];
+	char edge_half_graph_name[100];
+	char stats_name[100];
+	if (::file_writing) {
+		strcpy(cnf_name, fname);
+		strcat(cnf_name, ".cnf");
+		strcpy(proof_name, fname);
+		strcat(proof_name, ".drat");
+		strcpy(graph_name, fname);
+		strcat(graph_name, ".gr");
+		strcpy(half_graph_name, fname);
+		strcat(half_graph_name, "_half.gr");
+
+		strcpy(edge_graph_name, fname);
+		strcat(edge_graph_name, ".edges");
+		strcpy(edge_half_graph_name, fname);
+		strcat(edge_half_graph_name, "_half.edges");
+
+		strcpy(stats_name, fname);
+		strcat(stats_name, "_stats.txt");
+
+		if (remove(proof_name) != 0)
+		{
+			printf("No file to replace creating new %s file\n", proof_name);
+		}
+		else
+			puts("File successfully deleted");
+		if (remove(cnf_name) != 0)
+		{
+			printf("No file to replace creating new %s file\n", cnf_name);
+		}
+		else
+			puts("File successfully deleted");
+		if (remove(graph_name) != 0)
+		{
+			printf("No file to replace creating new %s file\n", graph_name);
+		}
+		else
+			puts("File successfully deleted");
+
+		if (remove(half_graph_name) != 0)
+		{
+			printf("No file to replace creating new %s file\n", half_graph_name);
+		}
+		else
+			puts("File successfully deleted");
+		if (remove(edge_graph_name) != 0)
+		{
+			printf("No file to replace creating new %s file\n", graph_name);
+		}
+		else
+			puts("File successfully deleted");
+
+		if (remove(edge_half_graph_name) != 0)
+		{
+			printf("No file to replace creating new %s file\n", half_graph_name);
+		}
+		else
+			puts("File successfully deleted");
+		if (remove(stats_name) != 0)
+		{
+			printf("No file to replace creating new %s file\n", stats_name);
+		}
+		else
+			puts("File successfully deleted");
+	}
+	//std::srand(unsigned(std::time(0)));
+
+
+	// set some values:
+	if (file_reading == 0) {
+		for (int i = 1; i < n + 1; ++i) myvector.push_back(i); // 1 2 3 4 5 6 7 8 9
+	}
+	//ER stuff in main
+	for (int i = 1; i <= 3 * n - 6; ++i) ::extvariables.push_back(i); // 1 2 3 4 5 6 7 8 9
+	::max_ext_var = 3 * n - 6;
+	//::er_proof_only = ERPROOFONLY;
+
+	// using myrandom:
+	//	std::random_shuffle(myvector.begin(), myvector.end(), order_random);
+	//	std::shuffle(myvector.begin(), myvector.end(), order_random);
+
+
+	if (::file_reading == 0) {
+		// uniform distribution
+
+		if (::distribution_mode == 0) {
+			if (::display_level >= PERMUTATION_LEVEL) {
+				cout << "uniform distribution" << endl;
+			}
+			myvector = uniform_random(n);
+		}
+		if (::distribution_mode == 1) {
+		
+			if (q == 1) {
+					cout << "WARNING: Mallows(n,1) is not recognised, try using -m 0 to get uniform distribution" << endl;
+
+			}
+			if (q < 1) {
+				if (::display_level >= PERMUTATION_LEVEL) {
+					cout << "Mallows(" << n << "," << q << ")" << endl;
+				}
+				myvector = mallows(n, q);
+			}
+			else {
+				k = k * k;
+				q = (double)pow((double)n, 1 / (double)k);
+				q = 1 / q;
+				if (::display_level >= PERMUTATION_LEVEL) {
+					cout << "Mallows(" << n << "," << q << ")" << endl;
+				}
+				myvector = mallows(n, q);
+			}
+			
+		}
+		if (::distribution_mode == 5) {
+		
+			myvector = distance_bounded_random(n, k);// formerly m=1
+		}
+		if (::distribution_mode == 2) {
+			myvector = clique_minor(n, k);
+		}
+		if (::distribution_mode == 3) {
+		
+			myvector = random_swaps(n, k);
+		}
+		if (::distribution_mode == 4) {
+		
+			myvector = random_swaps_distance(n, k);
+		}
+		
+
+	}
+	else {
+		cout << "shuffling skipped" << endl;
+		//getchar();
+	}
+
+	// print out content:
+	if (::display_level >= PERMUTATION_LEVEL) {
+		std::cout << "myvector contains:";
+		for (std::vector<int>::iterator it = myvector.begin(); it != myvector.end(); ++it)
+			std::cout << ' ' << *it;
+
+		std::cout << '\n';
+	}
+	ofstream vec_dump;
+	if (::file_writing) {
+		cout << "creating " << stats_name << endl;
+		vec_dump.open(stats_name, ios::app);
+		//stats << " n " << "\t" << "s" << "\t" << "#vars" << "\t" << "#c " << "\t" << "#lines" << "\t" << "#add" << "\t" << "#del" << "\t" <<  "time elapsed "  << endl;
+		//stats << n << "\t" << seed << "\t" << ::max_ext_var << "\t" << 8 * (n - 2) << "\t" << ::proof_size << "\t" << ::ata_size + ::rata_size << "\t" << ::ate_size + ::rate_size << "\t" << duration << endl;
+		for (int i = 0; i < myvector.size(); i++) {
+			vec_dump << myvector[i] << " ";
+			//cout << i << " " << r << " " << myvector[i] << endl;
+		}
+		vec_dump.close();
+	}
+
+	double duration;
+	std::clock_t start;
+
+	start = std::clock();
+	if (::file_writing) {
+		cout << "creating " << cnf_name << endl;
+	}
+	//Clause C = Clause(-1, 2, 3, 4);
+	int negativelit = order_random(n);
+	Cnf P = parity(n - 2, myvector, negativelit);
+	//C.Display();
+	::max_ext_var = 3 * n - 6;
+	std::vector<int> revvector = myvector;
+
+	for (int i = 1; i < n + 1; i++) {
+		revvector[myvector[i - 1] - 1] = i;
+	}
+
+	
+	/*
+	std::cout << "revvector contains:";
+	for (std::vector<int>::iterator it = revvector.begin(); it != revvector.end(); ++it)
+	std::cout << ' ' << *it;
+
+	std::cout << '\n';
+	*/
+	if (::file_writing) {
+		::file_cnf = fopen(cnf_name, "w");
+
+		//cnffile << "p cnf " << 3 * n -6 << " " << P.cspace << "\n";
+
+		::f = P;
+		//::f.Display();
+		::f.print(::file_cnf);
+
+		fclose(::file_cnf);
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "time for constructing CNF " << duration << endl;
+		//::reverse.print();
+	}
+	if (::file_writing) {
+		print_all_graphs(n, myvector, fname);
+	}
+	if (::proof_mode == 0) {
+		skip_prvr = 1;
+	}
+	if (::proof_mode == 1) {
+		::er_proof_only = 0;
+	}
+	if (::proof_mode == 2) {
+		::er_proof_only=1;
+	}
+
+	if (skip_prvr) {
+		cout << "skipping prover in this mode" << endl;
+	}
 
 	//getchar();
-	if (!skip_prvr){
+	if (!skip_prvr) {
 		if (::file_writing) {
 			cout << "creating " << proof_name << endl;
 		}
@@ -1842,13 +2156,24 @@ int main (int argc, char** argv) {
 		cout << " n " << "\t" << "#vars " << "\t" << "#c " << "\t" << "#lines" << "\t" << "#add" << "\t" << "#del" << "\t" << endl;
 		cout << n << "\t" << ::max_ext_var << "\t" << 8 * (n - 2) << "\t" << ::proof_size << "\t" << ::ata_size + ::rata_size << "\t" << ::ate_size + ::rate_size << endl;
 
-		ofstream stats; 
+		ofstream stats;
 		if (::file_writing) {
 			stats.open(stats_name, ios::app);
-			stats <<" \n\n n " << "\t" << "s" << "\t" << "#vars" << "\t" << "#c " << "\t" << "#lines" << "\t" << "#add" << "\t" << "#del" << "\t" <<  "time elapsed "  << endl;
-			stats << n << "\t" << seed << "\t" << ::max_ext_var << "\t" << 8 * (n - 2) << "\t" << ::proof_size << "\t" << ::ata_size + ::rata_size << "\t" << ::ate_size + ::rate_size << "\t" << duration << endl;
+			stats << " \n\n n " << "\t" << "s" << "\t" << "#vars" << "\t" << "#c " << "\t" << "#lines" << "\t" << "#add" << "\t" << "#del" << "\t" << "time elapsed " << endl;
+			stats << n << "\t";
+			if (::file_reading == 0) {
+				stats << seed << "\t";
+			}
+			else {
+				stats << "n/a \t";
+			}
+			stats << ::max_ext_var << "\t" << 8 * (n - 2) << "\t" << ::proof_size << "\t" << ::ata_size + ::rata_size << "\t" << ::ate_size + ::rate_size << "\t" << duration << endl;
 			stats.close();
 		}
-		//getchar();
+		
+	}
+	if (::display_level >= MAIN_LEVEL) {
+		cout << "press ANY key to EXIT";
+		getchar();
 	}
 }
